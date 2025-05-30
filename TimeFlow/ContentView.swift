@@ -8,14 +8,32 @@
 import SwiftUI
 
 struct ContentView: View {
+    
+    @State private var selectedTab = 0
+    
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        if selectedTab == 0 {
+            
+            HomeView(selectedTab: $selectedTab)
+            
+        } else if selectedTab == 1 {
+            
+            ChatView(selectedTab: $selectedTab)
+            
+        } else if selectedTab == 2 {
+            
+            PlanView(selectedTab: $selectedTab)
+            
+        } else if selectedTab == 3 {
+            
+            AnalyticsView(selectedTab: $selectedTab)
+            
+        } else if selectedTab == 4 {
+            
+            AccountView(selectedTab: $selectedTab)
+            
         }
-        .padding()
     }
 }
 
