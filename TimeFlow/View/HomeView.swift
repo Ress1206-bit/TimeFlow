@@ -17,7 +17,6 @@ struct HomeView: View {
             Image("blurbackground")
                 .resizable()
                 .ignoresSafeArea()
-                .aspectRatio(contentMode: .fill)
             
             VStack{
                 Text("Today's Schedule")
@@ -27,9 +26,9 @@ struct HomeView: View {
 
                 Rectangle()
                     .foregroundStyle(.white)
-                    .opacity(0.8)
+                    .opacity(0.9)
                     .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .padding(.horizontal, 80)
+                    .padding(.horizontal, 20)
                     .padding(.bottom, 20)
                 
                 TabView(selectedTab: $selectedTab)
