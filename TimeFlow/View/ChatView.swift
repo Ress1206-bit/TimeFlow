@@ -14,6 +14,9 @@ struct ChatView: View {
     @State private var messageText = ""
     @FocusState private var isTyping: Bool
     
+    
+    @EnvironmentObject var chatVM: ChatViewModel
+    
     var body: some View {
         
         ZStack {
@@ -35,6 +38,14 @@ struct ChatView: View {
                         .padding(.leading, 25)
                         .padding(.top, 5)
                         .ignoresSafeArea(.keyboard)
+                    
+                    ScrollView {
+                        LazyVStack {
+                            ForEach(chatVM.messages, id: \.self) { msg in
+                                TextBubble(message: msg)
+                            }
+                        }
+                    }
                     
                 }
                 
@@ -69,6 +80,8 @@ struct ChatView: View {
                                 .bold().bold()
                                 .onTapGesture {
                                     isTyping = false
+                                    chatVM.send(messageText, from: "userID")
+                                    messageText = ""
                                 }
             
                         }
@@ -95,6 +108,26 @@ struct ChatView: View {
     }
 }
 
+
+struct TextBubble: View {
+    
+    @State var message: Message
+    
+    
+    var body: some View {
+        
+        Text(message.text)
+            .foregroundStyle(.white)
+            .padding(10)
+            .background(Color.blue.opacity(0.15))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .id(message.id)
+        
+    }
+}
+
+
 #Preview {
     ChatView(selectedTab: .constant(0))
+        .environmentObject(ChatViewModel())
 }

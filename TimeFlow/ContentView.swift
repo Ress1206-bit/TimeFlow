@@ -9,6 +9,9 @@ import SwiftUI
 
 struct ContentView: View {
     
+    @StateObject private var chatVM = ChatViewModel()
+    
+    
     @State private var selectedTab = 0
     
     
@@ -20,6 +23,7 @@ struct ContentView: View {
         } else if selectedTab == 1 {
             
             ChatView(selectedTab: $selectedTab)
+                .environmentObject(chatVM)
             
         } else if selectedTab == 2 {
             
