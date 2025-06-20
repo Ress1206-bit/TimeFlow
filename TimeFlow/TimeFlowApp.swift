@@ -11,13 +11,17 @@ import FirebaseCore
 @main
 struct TimeFlowApp: App {
     
+    @State var contentModel: ContentModel
+    
     init() {
         FirebaseApp.configure()
+        contentModel = ContentModel()
     }
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            LaunchView()
+                .environment(contentModel)
         }
     }
 }
