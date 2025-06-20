@@ -62,24 +62,7 @@ struct SignInLandingView: View {
                     }
 
                     // Google Sign-In
-                    Button {
-                        Task {
-
-                        }
-                    } label: {
-                        HStack {
-                            Image("google_icon")
-                                .resizable()
-                                .frame(width: 24, height: 24)
-                            Text("Sign in with Google")
-                                .fontWeight(.medium)
-                                .font(.system(size: 18))
-                        }
-                        .frame(maxWidth: .infinity, minHeight: 48)
-                        .background(Color.white)
-                        .foregroundStyle(.black)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                    }
+                    GoogleButton()
 
                     // Email Sign-In
                     Button {
@@ -120,4 +103,48 @@ struct SignInLandingView: View {
 #Preview {
     SignInLandingView()
         .environment(ContentModel())
+}
+
+
+// Google Button
+struct GoogleButton: View {
+    @Environment(\.openURL) private var openURL
+    @Environment(ContentModel.self) private var contentModel
+    @Environment(\.scenePhase) private var phase
+    
+    @State private var busy = false
+    
+    var body: some View {
+        Button {
+            Task {
+                guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene else { return }
+                
+                busy = true
+                
+                do {
+                    try await contentModel.googleSignIn(windowScene: scene)
+                } catch {
+                    print(error.localizedDescription)
+                }
+                
+                busy = false
+                
+                
+                contentModel.checkLogin()
+            }
+        } label: {
+            HStack {
+                Image("google_icon")
+                    .resizable()
+                    .frame(width: 24, height: 24)
+                Text("Sign in with Google")
+                    .fontWeight(.medium)
+                    .font(.system(size: 18))
+            }
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .background(Color.white)
+            .foregroundStyle(.black)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+    }
 }

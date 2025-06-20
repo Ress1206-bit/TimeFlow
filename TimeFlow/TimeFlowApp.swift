@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FirebaseCore
+import GoogleSignIn
 
 @main
 struct TimeFlowApp: App {
@@ -15,6 +16,12 @@ struct TimeFlowApp: App {
     
     init() {
         FirebaseApp.configure()
+        
+        if let clientID = FirebaseApp.app()?.options.clientID {
+            GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
+        }
+        
+        
         contentModel = ContentModel()
     }
     

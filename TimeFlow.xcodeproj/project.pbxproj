@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		6B63AC572DEBAA710002FFEC /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 6B63AC562DEBAA710002FFEC /* FirebaseCore */; };
 		6B63AC592DEBAA710002FFEC /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = 6B63AC582DEBAA710002FFEC /* FirebaseFunctions */; };
-		6B63AC5B2DEBAA7F0002FFEC /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 6B63AC5A2DEBAA7E0002FFEC /* GoogleService-Info.plist */; };
 		6B7BE0382DE8F76600E85F7F /* TimeFlowApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B7BE0372DE8F76600E85F7F /* TimeFlowApp.swift */; };
 		6B7BE03A2DE8F76600E85F7F /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B7BE0392DE8F76600E85F7F /* ContentView.swift */; };
 		6B7BE03C2DE8F76700E85F7F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6B7BE03B2DE8F76700E85F7F /* Assets.xcassets */; };
@@ -36,10 +35,10 @@
 		6B97E6612DFE56F400E1C89D /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 6B97E6602DFE56F400E1C89D /* GoogleSignIn */; };
 		6B97E6632DFE56F400E1C89D /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 6B97E6622DFE56F400E1C89D /* GoogleSignInSwift */; };
 		6B97E6652E00DAA600E1C89D /* EmailEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B97E6642E00DAA600E1C89D /* EmailEntryView.swift */; };
+		6BAAD7EA2E05CCB900FFA692 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 6BAAD7E92E05CCB900FFA692 /* GoogleService-Info.plist */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		6B63AC5A2DEBAA7E0002FFEC /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		6B7BE0342DE8F76600E85F7F /* TimeFlow.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TimeFlow.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6B7BE0372DE8F76600E85F7F /* TimeFlowApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeFlowApp.swift; sourceTree = "<group>"; };
 		6B7BE0392DE8F76600E85F7F /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -63,6 +62,8 @@
 		6B97E6592DFA373400E1C89D /* CreateAccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateAccountView.swift; sourceTree = "<group>"; };
 		6B97E65B2DFE524100E1C89D /* SignInLandingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInLandingView.swift; sourceTree = "<group>"; };
 		6B97E6642E00DAA600E1C89D /* EmailEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailEntryView.swift; sourceTree = "<group>"; };
+		6BAAD7E92E05CCB900FFA692 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		6BAAD7EB2E05CE1B00FFA692 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -101,6 +102,7 @@
 		6B7BE0362DE8F76600E85F7F /* TimeFlow */ = {
 			isa = PBXGroup;
 			children = (
+				6BAAD7EB2E05CE1B00FFA692 /* Info.plist */,
 				6B7BE0372DE8F76600E85F7F /* TimeFlowApp.swift */,
 				6B7BE0392DE8F76600E85F7F /* ContentView.swift */,
 				6B97E6542DFA35DD00E1C89D /* LaunchView.swift */,
@@ -111,7 +113,7 @@
 				6B92EE032DEA92C20050AA0E /* Managers */,
 				6B92EE042DEA92C90050AA0E /* Utilities */,
 				6B7BE03B2DE8F76700E85F7F /* Assets.xcassets */,
-				6B63AC5A2DEBAA7E0002FFEC /* GoogleService-Info.plist */,
+				6BAAD7E92E05CCB900FFA692 /* GoogleService-Info.plist */,
 				6B7BE03D2DE8F76700E85F7F /* Preview Content */,
 			);
 			path = TimeFlow;
@@ -278,7 +280,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6B63AC5B2DEBAA7F0002FFEC /* GoogleService-Info.plist in Resources */,
+				6BAAD7EA2E05CCB900FFA692 /* GoogleService-Info.plist in Resources */,
 				6B7BE03F2DE8F76700E85F7F /* Preview Assets.xcassets in Resources */,
 				6B7BE03C2DE8F76700E85F7F /* Assets.xcassets in Resources */,
 			);
@@ -448,6 +450,7 @@
 				DEVELOPMENT_ASSET_PATHS = "\"TimeFlow/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TimeFlow/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -476,6 +479,7 @@
 				DEVELOPMENT_ASSET_PATHS = "\"TimeFlow/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TimeFlow/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

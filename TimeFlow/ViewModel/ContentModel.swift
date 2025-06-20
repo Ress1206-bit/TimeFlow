@@ -8,6 +8,7 @@
 import Foundation
 import Firebase
 import FirebaseAuth
+import GoogleSignIn
 
 
 @Observable
@@ -40,6 +41,37 @@ class ContentModel {
                 //let errorMessage = error?.localizedDescription
                 print("Error: Show Alert")
             }
+        }
+    }
+    
+    @MainActor
+    func googleSignIn(windowScene: UIWindowScene?) async throws {
+        guard let rootVC = windowScene?.windows.first?.rootViewController else {
+            throw URLError(.badServerResponse)
+        }
+        
+        let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootVC)
+        
+        guard let idToken = result.user.idToken?.tokenString else {
+            throw URLError(.badServerResponse)
+        }
+        
+        let accessToken = result.user.accessToken.tokenString
+        
+        let credential = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: accessToken)
+        
+        let authResult = try await Auth.auth().signIn(with: credential)
+        let user = authResult.user
+        
+        if authResult.additionalUserInfo?.isNewUser == true {
+            let doc = db.collection("users").document(user.uid)
+            
+            try await doc.setData([
+                "email": user.email ?? "",
+                "name": user.displayName ?? "",
+                "account_created": DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .medium),
+                "agreedToEULA": false //can maybe make true because the terms and conditions will be linked below during signup
+            ])
         }
     }
     
