@@ -23,8 +23,6 @@
 		6B8E99CD2E051EEE00C2B3DD /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B8E99CC2E051EEE00C2B3DD /* SignInView.swift */; };
 		6B92EDFF2DEA80B80050AA0E /* MessageModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B92EDFE2DEA80B80050AA0E /* MessageModel.swift */; };
 		6B92EE012DEA81380050AA0E /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B92EE002DEA81380050AA0E /* ChatViewModel.swift */; };
-		6B92EE082DEA984C0050AA0E /* IntentParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B92EE072DEA984C0050AA0E /* IntentParser.swift */; };
-		6B92EE0A2DEA98590050AA0E /* ScheduleManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B92EE092DEA98590050AA0E /* ScheduleManager.swift */; };
 		6B97E64D2DFA16F900E1C89D /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 6B97E64C2DFA16F900E1C89D /* FirebaseFirestore */; };
 		6B97E6512DFA2DB200E1C89D /* ContentModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B97E6502DFA2DB200E1C89D /* ContentModel.swift */; };
 		6B97E6532DFA2DD900E1C89D /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 6B97E6522DFA2DD900E1C89D /* FirebaseAuth */; };
@@ -36,6 +34,10 @@
 		6B97E6632DFE56F400E1C89D /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 6B97E6622DFE56F400E1C89D /* GoogleSignInSwift */; };
 		6B97E6652E00DAA600E1C89D /* EmailEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B97E6642E00DAA600E1C89D /* EmailEntryView.swift */; };
 		6BAAD7EA2E05CCB900FFA692 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 6BAAD7E92E05CCB900FFA692 /* GoogleService-Info.plist */; };
+		6BCCA6802E0C8135007AFA9B /* OnBoardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BCCA67F2E0C8135007AFA9B /* OnBoardingView.swift */; };
+		6BCCA6832E0CC5C4007AFA9B /* OpenAIHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BCCA6822E0CC5C4007AFA9B /* OpenAIHelper.swift */; };
+		6BCCA6852E0CC5E7007AFA9B /* ChatPlaygroundView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BCCA6842E0CC5E7007AFA9B /* ChatPlaygroundView.swift */; };
+		6BCCA6882E0CC80A007AFA9B /* OpenAI in Frameworks */ = {isa = PBXBuildFile; productRef = 6BCCA6872E0CC80A007AFA9B /* OpenAI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -54,8 +56,6 @@
 		6B8E99CC2E051EEE00C2B3DD /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		6B92EDFE2DEA80B80050AA0E /* MessageModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageModel.swift; sourceTree = "<group>"; };
 		6B92EE002DEA81380050AA0E /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
-		6B92EE072DEA984C0050AA0E /* IntentParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentParser.swift; sourceTree = "<group>"; };
-		6B92EE092DEA98590050AA0E /* ScheduleManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleManager.swift; sourceTree = "<group>"; };
 		6B97E6502DFA2DB200E1C89D /* ContentModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentModel.swift; sourceTree = "<group>"; };
 		6B97E6542DFA35DD00E1C89D /* LaunchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchView.swift; sourceTree = "<group>"; };
 		6B97E6572DFA372B00E1C89D /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
@@ -64,6 +64,9 @@
 		6B97E6642E00DAA600E1C89D /* EmailEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailEntryView.swift; sourceTree = "<group>"; };
 		6BAAD7E92E05CCB900FFA692 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		6BAAD7EB2E05CE1B00FFA692 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		6BCCA67F2E0C8135007AFA9B /* OnBoardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnBoardingView.swift; sourceTree = "<group>"; };
+		6BCCA6822E0CC5C4007AFA9B /* OpenAIHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIHelper.swift; sourceTree = "<group>"; };
+		6BCCA6842E0CC5E7007AFA9B /* ChatPlaygroundView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPlaygroundView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -75,6 +78,7 @@
 				6B63AC572DEBAA710002FFEC /* FirebaseCore in Frameworks */,
 				6B63AC592DEBAA710002FFEC /* FirebaseFunctions in Frameworks */,
 				6B97E6632DFE56F400E1C89D /* GoogleSignInSwift in Frameworks */,
+				6BCCA6882E0CC80A007AFA9B /* OpenAI in Frameworks */,
 				6B97E64D2DFA16F900E1C89D /* FirebaseFirestore in Frameworks */,
 				6B97E6532DFA2DD900E1C89D /* FirebaseAuth in Frameworks */,
 			);
@@ -105,13 +109,12 @@
 				6BAAD7EB2E05CE1B00FFA692 /* Info.plist */,
 				6B7BE0372DE8F76600E85F7F /* TimeFlowApp.swift */,
 				6B7BE0392DE8F76600E85F7F /* ContentView.swift */,
+				6BCCA67F2E0C8135007AFA9B /* OnBoardingView.swift */,
 				6B97E6542DFA35DD00E1C89D /* LaunchView.swift */,
 				6B7BE0452DE8F94C00E85F7F /* Model */,
 				6B7BE0462DE8F95400E85F7F /* View */,
 				6B7BE0472DE8F95C00E85F7F /* ViewModel */,
-				6B92EE022DEA92B80050AA0E /* Services */,
-				6B92EE032DEA92C20050AA0E /* Managers */,
-				6B92EE042DEA92C90050AA0E /* Utilities */,
+				6BCCA6812E0CC5A4007AFA9B /* AI_Manager */,
 				6B7BE03B2DE8F76700E85F7F /* Assets.xcassets */,
 				6BAAD7E92E05CCB900FFA692 /* GoogleService-Info.plist */,
 				6B7BE03D2DE8F76700E85F7F /* Preview Content */,
@@ -178,29 +181,6 @@
 			path = Authentication;
 			sourceTree = "<group>";
 		};
-		6B92EE022DEA92B80050AA0E /* Services */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Services;
-			sourceTree = "<group>";
-		};
-		6B92EE032DEA92C20050AA0E /* Managers */ = {
-			isa = PBXGroup;
-			children = (
-				6B92EE092DEA98590050AA0E /* ScheduleManager.swift */,
-			);
-			path = Managers;
-			sourceTree = "<group>";
-		};
-		6B92EE042DEA92C90050AA0E /* Utilities */ = {
-			isa = PBXGroup;
-			children = (
-				6B92EE072DEA984C0050AA0E /* IntentParser.swift */,
-			);
-			path = Utilities;
-			sourceTree = "<group>";
-		};
 		6B97E6562DFA371D00E1C89D /* Forms */ = {
 			isa = PBXGroup;
 			children = (
@@ -208,6 +188,15 @@
 				6B97E6592DFA373400E1C89D /* CreateAccountView.swift */,
 			);
 			path = Forms;
+			sourceTree = "<group>";
+		};
+		6BCCA6812E0CC5A4007AFA9B /* AI_Manager */ = {
+			isa = PBXGroup;
+			children = (
+				6BCCA6822E0CC5C4007AFA9B /* OpenAIHelper.swift */,
+				6BCCA6842E0CC5E7007AFA9B /* ChatPlaygroundView.swift */,
+			);
+			path = AI_Manager;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -233,6 +222,7 @@
 				6B97E6522DFA2DD900E1C89D /* FirebaseAuth */,
 				6B97E6602DFE56F400E1C89D /* GoogleSignIn */,
 				6B97E6622DFE56F400E1C89D /* GoogleSignInSwift */,
+				6BCCA6872E0CC80A007AFA9B /* OpenAI */,
 			);
 			productName = TimeFlow;
 			productReference = 6B7BE0342DE8F76600E85F7F /* TimeFlow.app */;
@@ -265,6 +255,7 @@
 			packageReferences = (
 				6B63AC552DEBAA710002FFEC /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				6B97E65F2DFE56F400E1C89D /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+				6BCCA6862E0CC80A007AFA9B /* XCRemoteSwiftPackageReference "OpenAI" */,
 			);
 			productRefGroup = 6B7BE0352DE8F76600E85F7F /* Products */;
 			projectDirPath = "";
@@ -294,25 +285,26 @@
 			buildActionMask = 2147483647;
 			files = (
 				6B7BE04D2DE933E700E85F7F /* ChatView.swift in Sources */,
+				6BCCA6832E0CC5C4007AFA9B /* OpenAIHelper.swift in Sources */,
 				6B8E99CB2E04B88A00C2B3DD /* CreateAccView.swift in Sources */,
 				6B7BE04B2DE8FC1500E85F7F /* HomeView.swift in Sources */,
 				6B7BE0562DE934CC00E85F7F /* TabView.swift in Sources */,
 				6B97E6582DFA372B00E1C89D /* LoginView.swift in Sources */,
+				6BCCA6852E0CC5E7007AFA9B /* ChatPlaygroundView.swift in Sources */,
 				6B97E65C2DFE524B00E1C89D /* SignInLandingView.swift in Sources */,
 				6B97E6552DFA35DD00E1C89D /* LaunchView.swift in Sources */,
 				6B7BE03A2DE8F76600E85F7F /* ContentView.swift in Sources */,
 				6B97E6652E00DAA600E1C89D /* EmailEntryView.swift in Sources */,
+				6BCCA6802E0C8135007AFA9B /* OnBoardingView.swift in Sources */,
 				6B97E6512DFA2DB200E1C89D /* ContentModel.swift in Sources */,
 				6B7BE0512DE9340500E85F7F /* AnalyticsView.swift in Sources */,
 				6B7BE0532DE9340E00E85F7F /* AccountView.swift in Sources */,
 				6B7BE0382DE8F76600E85F7F /* TimeFlowApp.swift in Sources */,
 				6B92EDFF2DEA80B80050AA0E /* MessageModel.swift in Sources */,
 				6B8E99CD2E051EEE00C2B3DD /* SignInView.swift in Sources */,
-				6B92EE082DEA984C0050AA0E /* IntentParser.swift in Sources */,
 				6B92EE012DEA81380050AA0E /* ChatViewModel.swift in Sources */,
 				6B7BE04F2DE933FB00E85F7F /* PlanView.swift in Sources */,
 				6B97E65A2DFA373400E1C89D /* CreateAccountView.swift in Sources */,
-				6B92EE0A2DEA98590050AA0E /* ScheduleManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -538,6 +530,14 @@
 				minimumVersion = 8.0.0;
 			};
 		};
+		6BCCA6862E0CC80A007AFA9B /* XCRemoteSwiftPackageReference "OpenAI" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/MacPaw/OpenAI.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.4.3;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -568,6 +568,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 6B97E65F2DFE56F400E1C89D /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
 			productName = GoogleSignInSwift;
+		};
+		6BCCA6872E0CC80A007AFA9B /* OpenAI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6BCCA6862E0CC80A007AFA9B /* XCRemoteSwiftPackageReference "OpenAI" */;
+			productName = OpenAI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -14,6 +14,8 @@ import GoogleSignIn
 @Observable
 class ContentModel {
     
+    var newUser = true //at first have them go through on boarding process
+    
     var loggedIn = false
     var agreedToEULA = true //give them the benefit of the doubt haha :)
     
@@ -27,6 +29,10 @@ class ContentModel {
     
     func checkLogin() {
         loggedIn = Auth.auth().currentUser == nil ? false : true
+    }
+    
+    func onBoardingComplete() {
+        newUser = false
     }
     
     func getUserData() {

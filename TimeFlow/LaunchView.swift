@@ -21,8 +21,11 @@ struct LaunchView: View {
                 SignInLandingView()
                 
             } else {
-                
-                ContentView()
+                if !contentModel.newUser {
+                    ContentView()
+                } else {
+                    //OnBoardingView()
+                }
                 
             }
         }
