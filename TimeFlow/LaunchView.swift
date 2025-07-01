@@ -24,7 +24,7 @@ struct LaunchView: View {
                 if !contentModel.newUser {
                     ContentView()
                 } else {
-                    //OnBoardingView()
+                    OnBoardingView()
                 }
                 
             }
