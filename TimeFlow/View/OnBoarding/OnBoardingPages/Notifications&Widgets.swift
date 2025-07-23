@@ -8,31 +8,33 @@
 import SwiftUI
 import UserNotifications
 
-// ----------------------------------------------------------------------
-//  NOTIFICATIONS & WIDGETS SCREEN — dark palette
-// ----------------------------------------------------------------------
 
 struct NotificationsWidgetsView: View {
-    
-    var onContinue: () -> Void = {}
     
     @State private var permissionStatus: UNAuthorizationStatus = .notDetermined
     @State private var isRequesting = false
     
-    private let bg     = Color.black
-    private let card   = Color(red: 0.13, green: 0.13, blue: 0.15)
-    private let accent = Color(red: 0.30, green: 0.64, blue: 0.97)
+    let themeColor: Color
+
+    private let card = Color(red: 0.13, green: 0.13, blue: 0.15)
+    
+    var onContinue: () -> Void = {}
+    
+    @State private var animateContent = false
     
     var body: some View {
         ZStack {
-            bg.ignoresSafeArea()
-                .overlay(
-                    Image("Noise")
-                        .resizable()
-                        .scaledToFill()
-                        .opacity(0.05)
-                        .ignoresSafeArea()
-                )
+            //background
+            LinearGradient(
+                colors: [
+                    AppTheme.Colors.background,
+                    AppTheme.Colors.secondary.opacity(0.3),
+                    AppTheme.Colors.background
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
             
             VStack(spacing: 36) {
                 header
@@ -45,6 +47,11 @@ struct NotificationsWidgetsView: View {
             .task { permissionStatus = await currentStatus() }
         }
         .preferredColorScheme(.dark)
+        .onAppear {
+            withAnimation {
+                animateContent = true
+            }
+        }
     }
 }
 
@@ -62,13 +69,16 @@ private extension NotificationsWidgetsView {
                 .foregroundColor(.white.opacity(0.85))
         }
         .padding(.top, 64)
+        .opacity(animateContent ? 1.0 : 0)
+        .offset(y: animateContent ? 0 : -20)
+        .animation(.easeOut(duration: 0.8), value: animateContent)
     }
     
     var previewCard: some View {
         VStack(spacing: 24) {
             Image(systemName: "bell.badge.fill")
                 .font(.system(size: 60, weight: .semibold))
-                .foregroundColor(accent)
+                .foregroundColor(themeColor)
                 .padding(.top, 28)
             
             Text("Timely alerts")
@@ -89,6 +99,9 @@ private extension NotificationsWidgetsView {
                 .shadow(color: .black.opacity(0.6), radius: 8, y: 4)
         )
         .padding(.horizontal)
+        .scaleEffect(animateContent ? 1.0 : 0.8)
+        .opacity(animateContent ? 1.0 : 0)
+        .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1), value: animateContent)
     }
     
     var allowButton: some View {
@@ -105,11 +118,14 @@ private extension NotificationsWidgetsView {
             .frame(maxWidth: .infinity)
             .padding()
         }
-        .background(accent)
+        .background(themeColor)
         .foregroundColor(.white)
         .cornerRadius(16)
         .padding(.horizontal)
         .disabled(permissionStatus == .authorized || isRequesting)
+        .scaleEffect(animateContent ? 1.0 : 0.8)
+        .opacity(animateContent ? 1.0 : 0)
+        .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1), value: animateContent)
     }
     
     var skipButton: some View {
@@ -154,9 +170,4 @@ private extension NotificationsWidgetsView {
                 }
             }
     }
-}
-
-// MARK: – Preview
-#Preview {
-    NavigationStack { NotificationsWidgetsView() }
 }

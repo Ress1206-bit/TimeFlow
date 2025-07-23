@@ -6,53 +6,68 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct CollegeScheduleView: View {
     
+    @Binding var courses: [CollegeCourse]
+    let themeColor: Color
+    
+    @State private var editing: CollegeCourse? = nil
+    @State private var showSheet = false
+    
+    private let hourHeight: CGFloat = 38
+    private let card = Color(red: 0.13, green: 0.13, blue: 0.15)
+    
+
+    private let weekdays: [Weekday] = [.monday, .tuesday, .wednesday, .thursday, .friday]
+    
+    
     var onContinue: () -> Void = {}
     
-    init(onContinue: @escaping () -> Void = {}) {
+    init(courses: Binding<[CollegeCourse]>, themeColor: Color, onContinue: @escaping () -> Void = {}) {
+        self._courses = courses
+        self.themeColor = themeColor
         self.onContinue = onContinue
         UIScrollView.appearance().bounces = false
     }
     
-    @State private var courses: [Course] = []
-    @State private var editing: Course? = nil
-    @State private var showSheet = false
-    
-    private let hourHeight: CGFloat = 38               // 30-min row
-    private let bg        = Color.black
-    private let card      = Color(red: 0.13, green: 0.13, blue: 0.15)
-    private let accent    = Color(red: 0.30, green: 0.64, blue: 0.97)
-    
-
-    private let weekdays: [Weekday] = Array(Weekday.allCases.prefix(5)) // Mon-Fri
+    @State private var animateContent = false
     
     var body: some View {
         ZStack {
-            bg.ignoresSafeArea()
-                .overlay(
-                    Image("Noise")
-                        .resizable()
-                        .scaledToFill()
-                        .opacity(0.05)
-                        .ignoresSafeArea()
-                )
+            //background
+            LinearGradient(
+                colors: [
+                    AppTheme.Colors.background,
+                    AppTheme.Colors.secondary.opacity(0.3),
+                    AppTheme.Colors.background
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
             
             VStack(spacing: 24) {
                 header
                 
                 calendarPanel
                     .padding(.horizontal, 8)
+                    .scaleEffect(animateContent ? 1.0 : 0.8)
+                    .opacity(animateContent ? 1.0 : 0)
+                    .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1), value: animateContent)
                 
                 addButton
+                    .scaleEffect(animateContent ? 1.0 : 0.8)
+                    .opacity(animateContent ? 1.0 : 0)
+                    .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1), value: animateContent)
                 
                 Button(action: onContinue) {
                     Text("Continue")
                         .fontWeight(.semibold)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(courses.isEmpty ? Color.gray.opacity(0.4) : accent)
+                        .background(courses.isEmpty ? Color.gray.opacity(0.4) : themeColor)
                         .foregroundColor(.white)
                         .cornerRadius(14)
                         .disabled(courses.isEmpty)
@@ -61,11 +76,20 @@ struct CollegeScheduleView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar { progressToolbar }
+        .toolbar {
+            progressToolbar(currentStep: 2) {
+                onContinue()
+            }
+        }
         .sheet(isPresented: $showSheet) {
-            ClassSheet(existing: $editing) { save($0) }
+            ClassSheet(existing: $editing, accent: themeColor) { save($0) }
         }
         .preferredColorScheme(.dark)
+        .onAppear {
+            withAnimation {
+                animateContent = true
+            }
+        }
     }
 }
 
@@ -90,7 +114,7 @@ private extension CollegeScheduleView {
     var weekdayHeader: some View {
         HStack(spacing: 0) {
             ForEach(weekdays) { day in
-                Text(day.rawValue)
+                Text(abbr(for: day))
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
@@ -98,6 +122,18 @@ private extension CollegeScheduleView {
         }
         .padding(.vertical, 6)
         .background(card.opacity(0.9))
+    }
+    
+    private func abbr(for day: Weekday) -> String {
+        switch day {
+        case .monday: return "Mon"
+        case .tuesday: return "Tue"
+        case .wednesday: return "Wed"
+        case .thursday: return "Thu"
+        case .friday: return "Fri"
+        case .saturday: return "Sat"
+        case .sunday: return "Sun"
+        }
     }
     
     var calendarGrid: some View {
@@ -130,47 +166,76 @@ private extension CollegeScheduleView {
     
     var classBlocks: some View {
         GeometryReader { geo in
-            ForEach(courses) { cls in
-                let colW = geo.size.width / 5
-                let colX = CGFloat(weekdays.firstIndex(of: cls.day) ?? 0)
-                let (top, height) = rect(for: cls)
-                
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(cls.color.opacity(0.9))
-                    .overlay(
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(cls.name).font(.caption).bold()
-                            Text(time(cls.start)+" – "+time(cls.end))
-                                .font(.caption2)
-                        }
-                        .foregroundColor(.white)
-                        .padding(4),
-                        alignment: .topLeading
+
+            ForEach($courses) { $course in    // binding array → Binding<CollegeCourse>
+                let current = $course.wrappedValue
+
+                if let colIndex = weekdays.firstIndex(of: current.day) {
+                    let rect  = frame(for: current)
+                    let colW  = geo.size.width / CGFloat(weekdays.count)
+
+                    ClassBlockView(
+                        course: current,
+                        width:  colW - 4,
+                        frame:  (top: rect.minY, height: rect.height),
+                        colX:   CGFloat(colIndex) * colW
                     )
-                    .frame(width: colW - 4, height: height - 2)
-                    .position(x: colW * colX + colW/2,
-                              y: top + height/2)
-                    .onTapGesture { editing = cls; showSheet = true }
+                    .onTapGesture {
+                        editing   = current          // edit a *copy* in your sheet
+                        showSheet = true
+                    }
+                }
             }
         }
         .clipped()
     }
     
-    func rect(for cls: Course) -> (CGFloat, CGFloat) {
-        let s = fractionalHours(cls.start)
-        let e = fractionalHours(cls.end)
-        let top = CGFloat(s - 6) * hourHeight
-        let h   = CGFloat(e - s) * hourHeight
-        return (top, h)
+    private struct ClassBlockView: View {
+        let course: CollegeCourse
+        let width:  CGFloat
+        let frame:  (top: CGFloat, height: CGFloat)
+        let colX:   CGFloat
+
+        var body: some View {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.palette(course.colorName))
+                .overlay(
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(course.name).font(.caption).bold()
+                        Text(time(from: course.startTime) + " – " + time(from: course.endTime))
+                            .font(.caption2)
+                    }
+                    .foregroundColor(.white)
+                    .padding(4),
+                    alignment: .topLeading
+                )
+                .frame(width: width, height: frame.height - 2)
+                .position(x: colX + width / 2,
+                          y: frame.top + frame.height / 2)
+        }
+
+        private func time(from hhmm: String) -> String {
+            guard let d = dateFromHHMM(hhmm) else { return hhmm }
+            return DateFormatter.localizedString(from: d,
+                                          dateStyle: .none,
+                                          timeStyle: .short)
+        }
     }
     
-    func fractionalHours(_ d: Date) -> Double {
-        let c = Calendar.current.dateComponents([.hour,.minute], from: d)
-        return Double(c.hour!) + Double(c.minute!) / 60
+    func frame(for course: CollegeCourse) -> CGRect {
+        // convert HH:mm strings to fractional hour values
+        let startH = fractionalHours(from: course.startTime)
+        let endH   = fractionalHours(from: course.endTime)
+
+        let top    = CGFloat(startH - 6) * hourHeight
+        let height = CGFloat(endH - startH) * hourHeight
+        return CGRect(x: 0, y: top, width: 0, height: height)
     }
     
-    func time(_ d: Date) -> String {
-        DateFormatter.localizedString(from: d, dateStyle: .none, timeStyle: .short)
+    private func fractionalHours(from hhmm: String) -> Double {
+        let parts = hhmm.split(separator: ":")
+        guard parts.count == 2, let h = Double(parts[0]), let m = Double(parts[1]) else { return 0 }
+        return h + m / 60.0
     }
 }
 
@@ -188,6 +253,9 @@ private extension CollegeScheduleView {
         }
         .multilineTextAlignment(.center)
         .padding(.horizontal)
+        .opacity(animateContent ? 1.0 : 0)
+        .offset(y: animateContent ? 0 : -20)
+        .animation(.easeOut(duration: 0.8), value: animateContent)
     }
     
     var addButton: some View {
@@ -199,158 +267,257 @@ private extension CollegeScheduleView {
                 .font(.headline)
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(accent)
+                .background(themeColor)
                 .foregroundColor(.white)
                 .cornerRadius(14)
                 .padding(.horizontal)
         }
     }
     
-    @ToolbarContentBuilder
-    var progressToolbar: some ToolbarContent {
-        ToolbarItem(placement: .navigationBarLeading) {
-            Text("Step 2 of 6")
-                .font(.subheadline.weight(.semibold))
-                .foregroundColor(.white.opacity(0.7))
-        }
-        ToolbarItem(placement: .navigationBarTrailing) {
-            Button("Skip") { onContinue() }
-                .foregroundColor(.white.opacity(0.9))
-        }
-    }
-    
 }
 
-private struct ClassSheet: View {
+
+struct ClassSheet: View {
+    // MARK: ‑ Dependencies
     @Environment(\.dismiss) private var dismiss
-    
-    @Binding var existing: Course?
-    let onSave: (Course) -> Void
-    
-    @State private var name  = ""
-    @State private var day   : Weekday  = .mon
-    @State private var start = Calendar.current.date(from: .init(hour: 9))!
-    @State private var end   = Calendar.current.date(from: .init(hour: 10))!
-    @State private var picked: Color    = .blue
-    @State private var showDelete = false
-    
-    private let accent  = Color(red: 0.30, green: 0.64, blue: 0.97)
-    private let card    = Color(red: 0.13, green: 0.13, blue: 0.15)
-    private let palette: [Color] = [.red,.orange,.yellow,.green,.mint,.teal,
-                                    .cyan,.blue,.indigo,.purple,.pink]
-    
-    private let weekdays: [Weekday] = Array(Weekday.allCases.prefix(5)) // Mon-Fri
-    
+
+    @Binding var existing: CollegeCourse?
+    let accent: Color
+    let onSave: (CollegeCourse) -> Void
+
+    // MARK: ‑ Form State
+    @State private var name = ""
+    @State private var weekday: Weekday = .monday
+    @State private var start = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: .now)!
+    @State private var end   = Calendar.current.date(bySettingHour: 10, minute: 0, second: 0, of: .now)!
+    @State private var colorName = "blue"
+    @State private var showDeleteAlert = false
+
+    // MARK: ‑ Constants
+    private let palette: [String] = ["red","orange","yellow","green","mint","teal","cyan","blue","indigo","purple","pink"]
+    private let weekdays: [Weekday] = [.monday,.tuesday,.wednesday,.thursday,.friday]
+
+    // MARK: ‑ Body
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    TextField("Course name", text: $name)
-                        .foregroundColor(.white)
+            ScrollView {
+                VStack(spacing: 28) {
+                    NameSection
+                    ScheduleSection
+                    ColorSection
+                    if existing != nil { DeleteSection }
                 }
-                .listRowBackground(card)
-                
-                Section {
-                    Picker("Day", selection: $day) {
-                        ForEach(weekdays) { Text($0.rawValue).tag($0) }
-                    }
-                    DatePicker("Starts", selection: $start,
-                               in: timeRange, displayedComponents: .hourAndMinute)
-                    DatePicker("Ends",   selection: $end,
-                               in: timeRange, displayedComponents: .hourAndMinute)
-                }
-                .listRowBackground(card)
-                .tint(accent)
-                
-                Section("Color") {
-                    LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 6)) {
-                        ForEach(palette, id: \.self) { col in
-                            Circle()
-                                .fill(col)
-                                .overlay(
-                                    Circle()
-                                        .stroke(col == picked ? Color.white : .clear, lineWidth: 2)
-                                )
-                                .frame(width: 28, height: 28)
-                                .onTapGesture { picked = col }
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-                .listRowBackground(card)
-                
-                if existing != nil {
-                    Section {
-                        Button("Delete class", role: .destructive) { showDelete = true }
-                            .frame(maxWidth: .infinity, alignment: .center)
-                    }
-                    .listRowBackground(card)
-                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 32)
             }
-            .scrollContentBackground(.hidden)
-            .background(Color.black)                     // matte backdrop
-            .navigationTitle(existing == nil ? "New class" : "Edit class")
+            .background(Color(.systemBackground))
+            .navigationTitle(existing == nil ? "New Class" : "Edit Class")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }
-                        .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || end <= start)
-                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
+                        .foregroundStyle(.white.opacity(0.7))
                 }
-            }
-            .onAppear { if let c = existing { load(c) } }
-            .alert("Delete this class?", isPresented: $showDelete) {
-                Button("Delete", role: .destructive) {
-                    onSave(Course(id: existing!.id,
-                                  name: "", day: .mon,
-                                  start: Date(), end: Date(),
-                                  color: .clear))
-                    dismiss()
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save", action: save)
+                        .foregroundStyle(.white.opacity(0.7))
+                        .fontWeight(.semibold)
+                        .disabled(!isFormValid)
                 }
-                Button("Cancel", role: .cancel) { }
             }
         }
-        .preferredColorScheme(.dark)                     // force dark mode
+        .task { if let course = existing { load(course) } }
+        .preferredColorScheme(.dark)
+        .alert("Delete This Class?", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
+                guard let course = existing else { return }
+                onSave(course.deletedCopy)
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This action cannot be undone.")
+        }
     }
-    
-    private var timeRange: ClosedRange<Date> {
-        let c = Calendar.current
-        return c.date(from: .init(hour: 6))!
-             ...
-        c.date(from: .init(hour: 23, minute: 30))!
+}
+
+// MARK: ‑ Sub‑views
+private extension ClassSheet {
+
+    var NameSection: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Course Name")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                TextField("Linear Algebra", text: $name)
+                    .textInputAutocapitalization(.words)
+                    .font(.body)
+            }
+        }
     }
-    
-    private func load(_ c: Course) {
-        name   = c.name
-        day    = c.day
-        start  = c.start
-        end    = c.end
-        picked = c.color
+
+    var ScheduleSection: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 16) {
+                Label("Schedule", systemImage: "calendar")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                // Day Picker
+                Menu {
+                    ForEach(weekdays) { day in
+                        Button {
+                            weekday = day
+                        } label: {
+                            Text(day.rawValue.capitalized)
+                                .padding(.leading)
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Text(weekday.rawValue.capitalized)
+                        Spacer()
+                        Image(systemName: "chevron.down")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.trailing, 5)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.vertical, 12)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+
+                // Time Pickers
+                HStack(spacing: 12) {
+                    DatePicker("Start", selection: $start,
+                               in: timeRange,
+                               displayedComponents: .hourAndMinute)
+                        .labelsHidden()
+                    Divider()
+                    DatePicker("End", selection: $end,
+                               in: timeRange,
+                               displayedComponents: .hourAndMinute)
+                        .labelsHidden()
+                }
+            }
+        }
     }
-    
-    private func save() {
-        let new = Course(id: existing?.id ?? UUID(),
-                         name: name,
-                         day: day,
-                         start: start,
-                         end: end,
-                         color: picked)
-        onSave(new)
+
+    var ColorSection: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 16) {
+                Label("Color", systemImage: "paintpalette")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: 6), spacing: 16) {
+                    ForEach(palette, id: \.self) { name in
+                        Circle()
+                            .fill(Color.palette(name))
+                            .frame(width: 32, height: 32)
+                            .overlay(
+                                Circle()
+                                    .stroke(name == colorName ? accent : .clear, lineWidth: 3)
+                            )
+                            .contentShape(Circle())
+                            .onTapGesture { colorName = name }
+                            .accessibilityLabel(Text(name))
+                    }
+                }
+            }
+        }
+    }
+
+    var DeleteSection: some View {
+        Card {
+            Button(role: .destructive) {
+                showDeleteAlert = true
+            } label: {
+                Label("Delete Class", systemImage: "trash")
+                    .frame(maxWidth: .infinity)
+            }
+            .padding(.vertical, 4)
+        }
+    }
+}
+
+// MARK: ‑ Helpers
+private extension ClassSheet {
+
+    var timeRange: ClosedRange<Date> {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: .now)
+        let end = calendar.date(byAdding: .day, value: 1, to: start)!
+        return start...end
+    }
+
+    var isFormValid: Bool {
+        !name.trimmingCharacters(in: .whitespaces).isEmpty && end > start
+    }
+
+    func load(_ course: CollegeCourse) {
+        name      = course.name
+        weekday   = course.day
+        colorName = course.colorName
+        start     = dateFromHHMM(course.startTime) ?? Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: .now)!
+        end       = dateFromHHMM(course.endTime) ?? Calendar.current.date(bySettingHour: 10, minute: 0, second: 0, of: .now)!
+    }
+
+    func save() {
+        let id = existing?.id ?? UUID()
+        onSave(CollegeCourse(id: id,
+                             name: name.trimmingCharacters(in: .whitespaces),
+                             day: weekday,
+                             startTime: start.hhmmString,
+                             endTime: end.hhmmString,
+                             colorName: colorName))
         dismiss()
     }
 }
 
+// MARK: ‑ Card Wrapper
+private struct Card<Content: View>: View {
+    @Environment(\.colorScheme) private var scheme
+    let content: Content
+    init(@ViewBuilder _ content: () -> Content) { self.content = content() }
+
+    var body: some View {
+        content
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(.secondarySystemGroupedBackground))
+                    .shadow(color: .black.opacity(scheme == .dark ? 0.5 : 0.1), radius: 6, x: 0, y: 2)
+            )
+    }
+}
+
+// MARK: ‑ Convenience Extensions
+private extension CollegeCourse {
+    /// A shallow copy with zero‑values used when deleting a course.
+    var deletedCopy: CollegeCourse {
+        .init(id: id, name: "", day: .monday, startTime: "00:00", endTime: "00:00", colorName: "accent")
+    }
+}
+
+
 private extension CollegeScheduleView {
-    func save(_ c: Course) {
+    func save(_ c: CollegeCourse) {
         if let i = courses.firstIndex(where: { $0.id == c.id }) {
-            if c.name.isEmpty { courses.remove(at: i) }
-            else              { courses[i] = c }
-        } else { courses.append(c) }
+            if c.name.isEmpty { 
+                courses.remove(at: i) 
+            } else { 
+                courses[i] = c 
+            }
+        } else { 
+            courses.append(c) 
+        }
     }
 }
 
 #Preview {
-    NavigationStack { CollegeScheduleView() }
+    CollegeScheduleView(courses: .constant([]), themeColor: .blue)
 }

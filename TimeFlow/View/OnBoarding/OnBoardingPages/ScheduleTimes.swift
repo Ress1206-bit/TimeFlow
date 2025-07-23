@@ -1,36 +1,49 @@
-//
-//  ScheduleTimes.swift
-//  TimeFlow
-//
-//  Created by Adam Ress on 6/28/25.
-//
-
 import SwiftUI
 
 struct ScheduleTimes: View {
-    @State private var wake: Double = 7 * 60
-    @State private var bed:  Double = 23 * 60
+    
+    @Binding var awakeHours: AwakeHours
+    let themeColor: Color
     
     var onContinue: () -> Void = {}
     
+    @State private var wakeMin: Double
+    @State private var bedMin: Double
+    
     private var sleepHours: Double {
-        let span = (wake - bed + 1440).truncatingRemainder(dividingBy: 1440)
+        let span = (wakeMin - bedMin + 1440).truncatingRemainder(dividingBy: 1440)
         return (span / 60 * 10).rounded() / 10
     }
     
-    private let accent = Color(red: 0.30, green: 0.64, blue: 0.97)
-    private let card   = Color(red: 0.13, green: 0.13, blue: 0.15)
+    private let card = Color(red: 0.13, green: 0.13, blue: 0.15)
+    
+    @State private var animateContent = false
+    
+    init(awakeHours: Binding<AwakeHours>, themeColor: Color, onContinue: @escaping () -> Void = {}) {
+        self._awakeHours = awakeHours
+        self.themeColor = themeColor
+        self.onContinue = onContinue
+        
+        let initialWake = toMinutes(awakeHours.wrappedValue.wakeTime)
+        let initialBed = toMinutes(awakeHours.wrappedValue.sleepTime)
+        
+        self._wakeMin = State(initialValue: initialWake)
+        self._bedMin = State(initialValue: initialBed)
+    }
     
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
-                .overlay(
-                    Image("Noise")
-                        .resizable()
-                        .scaledToFill()
-                        .opacity(0.05)
-                        .ignoresSafeArea()
-                )
+            //background
+            LinearGradient(
+                colors: [
+                    AppTheme.Colors.background,
+                    AppTheme.Colors.secondary.opacity(0.3),
+                    AppTheme.Colors.background
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
             
             VStack(spacing: 40) {
                 
@@ -38,12 +51,18 @@ struct ScheduleTimes: View {
                 
                 header
                 
-                BedtimeDial(wake: $wake, bed: $bed, accent: accent, card: card)
-                    .frame(width: 340, height: 340)
+                BedtimeDial(wake: $wakeMin, bed: $bedMin, accent: themeColor, card: card)
+                    .aspectRatio(1, contentMode: .fit)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 20)
+                    .scaleEffect(animateContent ? 1.0 : 0.8)
+                    .opacity(animateContent ? 1.0 : 0)
+                    .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1), value: animateContent)
                 
-                Text("\(sleepHours, specifier: "%.1f") h in bed")
-                    .font(.headline)
-                    .foregroundColor(.white.opacity(0.8))
+                sleepDurationDisplay
+                    .scaleEffect(animateContent ? 1.0 : 0.8)
+                    .opacity(animateContent ? 1.0 : 0)
+                    .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1), value: animateContent)
                 
                 Spacer()
                 
@@ -52,15 +71,47 @@ struct ScheduleTimes: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(accent)
+                        .background(isValidSchedule ? themeColor : Color.gray)
                         .foregroundColor(.white)
                         .cornerRadius(16)
                         .padding(.horizontal)
                         .padding(.bottom, 22)
                 }
+                .disabled(!isValidSchedule)
             }
         }
         .preferredColorScheme(.dark)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar { progressToolbar(currentStep: 3) {
+            onContinue()
+        } }
+        .onChange(of: wakeMin) { oldValue, newValue in
+            enforceMinSeparation()
+            awakeHours.wakeTime = toHHMM(from: newValue)
+        }
+        .onChange(of: bedMin) { oldValue, newValue in
+            enforceMinSeparation()
+            awakeHours.sleepTime = toHHMM(from: newValue)
+        }
+        .onAppear {
+            withAnimation {
+                animateContent = true
+            }
+        }
+    }
+    
+    private var isValidSchedule: Bool {
+        sleepHours >= 1 && sleepHours <= 23  // Prevent 0 or 24-hour sleep
+    }
+    
+    private func enforceMinSeparation() {
+        let minSeparation: Double = 60  // At least 1 hour apart
+        let diff = (wakeMin - bedMin + 1440).truncatingRemainder(dividingBy: 1440)
+        if diff < minSeparation {
+            bedMin = (wakeMin - minSeparation + 1440).truncatingRemainder(dividingBy: 1440)
+        } else if diff > 1440 - minSeparation {
+            wakeMin = (bedMin + minSeparation).truncatingRemainder(dividingBy: 1440)
+        }
     }
     
     private var header: some View {
@@ -74,48 +125,48 @@ struct ScheduleTimes: View {
                 .multilineTextAlignment(.center)
         }
         .padding(.horizontal)
+        .opacity(animateContent ? 1.0 : 0)
+        .offset(y: animateContent ? 0 : -20)
+        .animation(.easeOut(duration: 0.8), value: animateContent)
     }
     
-    @ToolbarContentBuilder
-    var progressToolbar: some ToolbarContent {
-        ToolbarItem(placement: .navigationBarLeading) {
-            Text("Step 3 of 6")
-                .font(.subheadline.weight(.semibold))
-                .foregroundColor(.white.opacity(0.7))
-        }
-        ToolbarItem(placement: .navigationBarTrailing) {
-            Button("Skip") { onContinue() }
-                .foregroundColor(.white.opacity(0.9))
-        }
+    private var sleepDurationDisplay: some View {
+        Text("Sleep duration: \(sleepHours, specifier: "%.1f") hours")
+            .font(.subheadline.weight(.semibold))
+            .foregroundColor(.white.opacity(0.9))
+            .padding(.horizontal)
     }
 }
 
 struct BedtimeDial: View {
     @Binding var wake: Double
-    @Binding var bed:  Double
+    @Binding var bed: Double
     
     let accent: Color
     let card: Color
     
     private let stroke: CGFloat = 30
-    private let knob:  CGFloat = 34
+    private let knob: CGFloat = 34
+    private let minTickHeight: CGFloat = 8
+    private let hourTickHeight: CGFloat = 16
+    private let labelOffset: CGFloat = 28  // Space for labels outside ticks
     
     var body: some View {
         GeometryReader { geo in
-            let side   = min(geo.size.width, geo.size.height)
-            let radius = (side - knob) / 2
-            let centre = CGPoint(x: geo.size.width/2, y: geo.size.height/2)
+            let side = min(geo.size.width, geo.size.height)
+            let radius = (side - knob - labelOffset) / 2  // Adjust for labels
+            let centre = CGPoint(x: geo.size.width / 2, y: geo.size.height / 2)
             
             ZStack {
                 dial(radius: radius)
                 sleepArc(radius: radius, centre: centre)
-                knob(minutes: $bed,  symbol: "moon.fill",
-                     color: accent.opacity(0.85), radius: radius, centre: centre)
-                knob(minutes: $wake, symbol: "sun.max.fill",
-                     color: .yellow.opacity(0.95), radius: radius, centre: centre)
+                knob(minutes: $bed, symbol: "moon.fill", color: accent, radius: radius, centre: centre)
+                knob(minutes: $wake, symbol: "sun.max.fill", color: accent, radius: radius, centre: centre)
                 centreTimes
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Bedtime dial. Wake at \(timeString(from: wake)), Bed at \(timeString(from: bed))")
     }
     
     private func dial(radius: CGFloat) -> some View {
@@ -123,27 +174,54 @@ struct BedtimeDial: View {
             Circle()
                 .fill(card)
                 .shadow(color: .black.opacity(0.6), radius: 6)
-            ForEach(0..<24) { h in
-                Rectangle()
-                    .fill(Color.white.opacity(0.7))
-                    .frame(width: 2, height: h % 6 == 0 ? 16 : 8)
-                    .offset(y: -radius + 8)
-                    .rotationEffect(.degrees(Double(h) / 24 * 360))
+            ForEach(0..<288) { i in  // 288 ticks for every 5 minutes (1440/5=288)
+                if i % 12 == 0 {  // Every hour (288/24=12)
+                    hourTickAndLabel(at: i, radius: radius)
+                } else {
+                    minorTick(at: i, radius: radius)
+                }
             }
         }
     }
     
+    private func minorTick(at index: Int, radius: CGFloat) -> some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.4))
+            .frame(width: 1, height: minTickHeight)
+            .offset(y: -radius + minTickHeight / 2)
+            .rotationEffect(.degrees(Double(index) * 1.25))  // 360/288=1.25
+    }
+    
+    private func hourTickAndLabel(at index: Int, radius: CGFloat) -> some View {
+        let hour = index / 12  // 0 to 23
+        let rotation = Double(index) * 1.25
+        
+        return ZStack {
+            Rectangle()
+                .fill(Color.white.opacity(0.7))
+                .frame(width: 2, height: hourTickHeight)
+                .offset(y: -radius + hourTickHeight / 2)
+            Text("\(hour)")
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(.white.opacity(0.8))
+                .offset(y: -radius - labelOffset / 2 + 4)  // Position outside
+        }
+        .rotationEffect(.degrees(rotation))
+    }
+    
     private func sleepArc(radius: CGFloat, centre: CGPoint) -> some View {
-        let start = Angle(degrees: angle(for: bed))
-        let end   = Angle(degrees: angle(for: wake))
+        let startAngle = Angle(degrees: angle(for: bed) - 90)
+        let endAngle = Angle(degrees: angle(for: wake) - 90)
+        let clockwise = (wake - bed + 1440).truncatingRemainder(dividingBy: 1440) > 720  // Determine direction
+        
         return Path { p in
             p.addArc(center: centre,
                      radius: radius,
-                     startAngle: start - .degrees(90),
-                     endAngle:   end   - .degrees(90),
-                     clockwise: false)
+                     startAngle: startAngle,
+                     endAngle: endAngle,
+                     clockwise: clockwise)
         }
-        .stroke(accent.opacity(0.3),
+        .stroke(accent.opacity(0.5),  // Increased opacity for better visibility
                 style: StrokeStyle(lineWidth: stroke, lineCap: .round))
     }
     
@@ -170,7 +248,6 @@ struct BedtimeDial: View {
         .gesture(
             DragGesture()
                 .onChanged { g in
-                    
                     let v = CGVector(dx: g.location.x - centre.x,
                                      dy: g.location.y - centre.y)
                     
@@ -182,31 +259,51 @@ struct BedtimeDial: View {
                     
                     var mins = deg / 360 * 1440
                     mins = (mins / 5).rounded() * 5
-
-                    minutes.wrappedValue = mins
+                    
+                    if mins != minutes.wrappedValue {
+                        minutes.wrappedValue = mins
+                        
+                        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                        impactFeedback.impactOccurred()
+                    }
                 }
         )
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Drag to adjust time")
     }
     
     private var centreTimes: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 6) {
             Text("Wake \(timeString(from: wake))")
-            Text("Bed  \(timeString(from: bed))")
+            Text("Bed \(timeString(from: bed))")
         }
-        .font(.footnote.weight(.semibold))
+        .font(.callout.weight(.semibold))  // Larger font for better readability
         .foregroundColor(.white)
     }
     
     private func angle(for m: Double) -> Double { m / 1440 * 360 }
     
     private func timeString(from minutes: Double) -> String {
-        let h = Int(minutes) / 60
-        let m = Int(minutes) % 60
+        let total = Int(minutes) % 1440
+        let h = total / 60
+        let m = total % 60
         let d = Calendar.current.date(bySettingHour: h, minute: m, second: 0, of: Date())!
         return DateFormatter.localizedString(from: d, dateStyle: .none, timeStyle: .short)
     }
 }
 
+private func toMinutes(_ hhmm: String) -> Double {
+    let comps = hhmm.split(separator: ":").compactMap { Int($0) }
+    guard comps.count == 2 else { return 0 }
+    return Double((comps[0] * 60) + comps[1])
+}
+
+private func toHHMM(from minutes: Double) -> String {
+    let h = Int(minutes) / 60 % 24
+    let m = Int(minutes) % 60
+    return String(format: "%02d:%02d", h, m)
+}
+
 #Preview {
-    NavigationStack { ScheduleTimes() }
+    ScheduleTimes(awakeHours: .constant(AwakeHours(wakeTime: "07:00", sleepTime: "23:00")), themeColor: .blue)
 }

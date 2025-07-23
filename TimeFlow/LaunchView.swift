@@ -9,28 +9,40 @@ import SwiftUI
 import FirebaseAuth
 
 struct LaunchView: View {
-    
     @Environment(ContentModel.self) var contentModel
-        
 
     var body: some View {
-        
-        NavigationStack {
+        Group {
             if !contentModel.loggedIn {
-                
                 SignInLandingView()
-                
+
             } else {
-                if !contentModel.newUser {
-                    ContentView()
-                } else {
+                switch contentModel.newUser {
+                case nil:
+                    ProgressView()
+
+                case true?:
                     OnBoardingView()
+
+                case false?:
+                    ContentView()
                 }
-                
             }
         }
-        .task {
+
+        .task(id: contentModel.loggedIn) {
             contentModel.checkLogin()
+
+            if contentModel.loggedIn {
+                do {
+                    try await contentModel.checkNewUser()
+                    try await contentModel.fetchUser()
+                } catch {
+                    print("Error getting user information: \(error)")
+                }
+            } else {
+                contentModel.newUser = nil
+            }
         }
     }
 }

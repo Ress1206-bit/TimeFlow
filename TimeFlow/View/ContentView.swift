@@ -20,6 +20,7 @@ struct ContentView: View {
             
             HomeView(selectedTab: $selectedTab)
             
+            
         } else if selectedTab == 1 {
             
             ChatView(selectedTab: $selectedTab)
@@ -27,7 +28,7 @@ struct ContentView: View {
             
         } else if selectedTab == 2 {
             
-            PlanView(selectedTab: $selectedTab)
+             GoalsDisplayView(selectedTab: $selectedTab)
             
         } else if selectedTab == 3 {
             
@@ -35,7 +36,7 @@ struct ContentView: View {
             
         } else if selectedTab == 4 {
             
-            AccountView(selectedTab: $selectedTab)
+            AccountView()
             
         }
     }

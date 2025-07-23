@@ -6,9 +6,15 @@
 //
 
 import SwiftUI
+import UserNotifications
 
 
 struct SubscriptionView: View {
+    
+    @Environment(ContentModel.self) private var contentModel
+    @Environment(\.dismiss) private var dismiss
+    
+    let themeColor: Color
     
     var onContinue: () -> Void = {}
     
@@ -20,18 +26,23 @@ struct SubscriptionView: View {
     @State private var isPurchasing = false
     
     
-    private let bg     = Color.black
-    private let card   = Color(red: 0.13, green: 0.13, blue: 0.15)
-    private let accent = Color(red: 0.30, green: 0.64, blue: 0.97)
+    private let card = Color(red: 0.13, green: 0.13, blue: 0.15)
+    
+    @State private var animateContent = false
     
     var body: some View {
         ZStack {
-            bg.ignoresSafeArea()
-                .overlay(Image("Noise")
-                            .resizable()
-                            .scaledToFill()
-                            .opacity(0.05)
-                            .ignoresSafeArea())
+            //background
+            LinearGradient(
+                colors: [
+                    AppTheme.Colors.background,
+                    AppTheme.Colors.secondary.opacity(0.3),
+                    AppTheme.Colors.background
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
             
             ScrollView {
                 VStack(spacing: 36) {
@@ -48,6 +59,11 @@ struct SubscriptionView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .onAppear {
+            withAnimation {
+                animateContent = true
+            }
+        }
     }
 }
 
@@ -67,13 +83,19 @@ private extension SubscriptionView {
                 .foregroundColor(.white.opacity(0.85))
         }
         .padding(.top, 40)
+        .opacity(animateContent ? 1.0 : 0)
+        .offset(y: animateContent ? 0 : -20)
+        .animation(.easeOut(duration: 0.8), value: animateContent)
     }
     
     var pricingCards: some View {
         VStack(spacing: 20) {
             
-            ForEach(Plan.allCases) { plan in
+            ForEach(Array(Plan.allCases.enumerated()), id: \.offset) { index, plan in
                 planCard(for: plan)
+                    .scaleEffect(animateContent ? 1.0 : 0.8)
+                    .opacity(animateContent ? 1.0 : 0)
+                    .animation(.spring(response: 0.6, dampingFraction: 0.75).delay(0.1 + Double(index) * 0.15), value: animateContent)
             }
         }
     }
@@ -106,7 +128,7 @@ private extension SubscriptionView {
                 .fill(card)
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
-                        .stroke(picked ? accent : .clear, lineWidth: 3)
+                        .stroke(picked ? themeColor : .clear, lineWidth: 3)
                 )
                 .shadow(color: .black.opacity(0.6), radius: 8, y: 4)
         )
@@ -129,19 +151,25 @@ private extension SubscriptionView {
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(accent)
-                .foregroundColor(.white)
-                .cornerRadius(16)
             }
+            .background(themeColor)
+            .foregroundColor(.white)
+            .cornerRadius(16)
             .disabled(isPurchasing)
             
-            Button(action: onContinue) {
+            Button {
+                contentModel.newUser = false
+                dismiss()
+            } label: {
                 Text("Maybe Later")
                     .underline()
                     .foregroundColor(.white.opacity(0.8))
             }
             .padding(.bottom, 8)
         }
+        .scaleEffect(animateContent ? 1.0 : 0.8)
+        .opacity(animateContent ? 1.0 : 0)
+        .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.4), value: animateContent)
     }
     
 
@@ -152,6 +180,8 @@ private extension SubscriptionView {
             .foregroundColor(.white.opacity(0.75))
             .multilineTextAlignment(.center)
             .padding(.bottom, 40)
+            .opacity(animateContent ? 1.0 : 0)
+            .animation(.easeInOut(duration: 0.8).delay(0.5), value: animateContent)
     }
     
     // ─────────────────────────── MOCK PURCHASE
@@ -164,9 +194,4 @@ private extension SubscriptionView {
             onContinue()
         }
     }
-}
-
-
-#Preview {
-    NavigationStack { SubscriptionView() }
 }

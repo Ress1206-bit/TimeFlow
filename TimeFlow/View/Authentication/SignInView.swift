@@ -7,8 +7,6 @@
 
 import SwiftUI
 
-import SwiftUI
-
 struct SignInView: View {
 
     @Environment(\.dismiss) private var dismiss
@@ -27,9 +25,9 @@ struct SignInView: View {
         
             LinearGradient(
                 colors: [
-                    Color(red: 0.18, green: 0.16, blue: 0.47),      // deep indigo
-                    Color(red: 0.46, green: 0.30, blue: 0.89),      // lavender
-                    Color(red: 0.40, green: 0.40, blue: 0.95)       // periwinkle
+                    AppTheme.Colors.secondary,                    // deep navy
+                    AppTheme.Colors.accent.opacity(0.8),          // accent lavender
+                    AppTheme.Colors.primary                       // primary blue
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -43,23 +41,47 @@ struct SignInView: View {
                 Text("Sign Into Your\nAccount")
                     .font(.system(size: 34, weight: .semibold, design: .rounded))
                     .multilineTextAlignment(.center)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.Colors.textPrimary)
 
                 // E-mail label
                 Text(email)
                     .font(.headline)
-                    .foregroundStyle(.white.opacity(0.85))
+                    .foregroundStyle(AppTheme.Colors.textSecondary)
 
                 // Password field
                 ZStack {
                     if showPassword {
                         TextField("", text: $password,
-                                  prompt: Text("Password").foregroundStyle(.white))
-                            .fieldStyle()
+                                  prompt: Text("Password").foregroundStyle(AppTheme.Colors.textPrimary))
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .padding(.horizontal, 18)
+                        .frame(height: 52)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(AppTheme.Colors.textPrimary.opacity(0.05))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(AppTheme.Colors.overlay, lineWidth: 1)
+                                )
+                        )
+                        .foregroundStyle(AppTheme.Colors.textPrimary)
                     } else {
                         SecureField("", text: $password,
-                                    prompt: Text("Password").foregroundStyle(.white))
-                            .fieldStyle()
+                                    prompt: Text("Password").foregroundStyle(AppTheme.Colors.textPrimary))
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .padding(.horizontal, 18)
+                        .frame(height: 52)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(AppTheme.Colors.textPrimary.opacity(0.05))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(AppTheme.Colors.overlay, lineWidth: 1)
+                                )
+                        )
+                        .foregroundStyle(AppTheme.Colors.textPrimary)
                     }
 
                     // Eye icon, aligned to the trailing edge
@@ -69,7 +91,7 @@ struct SignInView: View {
                             showPassword.toggle()
                         } label: {
                             Image(systemName: showPassword ? "eye" : "eye.slash")
-                                .foregroundStyle(.white.opacity(0.8))
+                                .foregroundStyle(AppTheme.Colors.textTertiary)
                         }
                         .padding(.trailing, 18)          // same horizontal padding as field
                     }
@@ -77,18 +99,24 @@ struct SignInView: View {
 
                 // Action button
                 Button {
-                    contentModel.signIn(email: email, password: password)
+                    Task {
+                        do {
+                            try await contentModel.signIn(email: email, password: password)
+                        } catch {
+                            print("Sign in failed: \(error.localizedDescription)")
+                        }
+                    }
                 } label: {
                     Text("Sign In")
                         .font(.headline)
                         .frame(maxWidth: .infinity, minHeight: 52)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(red: 0.41, green: 0.42, blue: 0.94))
-                                .shadow(color: .white.opacity(0.18),
+                                .fill(AppTheme.Colors.primary)
+                                .shadow(color: AppTheme.Shadows.icon,
                                         radius: 18, y: 10)
                         )
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppTheme.Colors.textPrimary)
                 }
                 .buttonStyle(.plain)
 
@@ -100,31 +128,11 @@ struct SignInView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .stroke(.white.opacity(0.42), lineWidth: 1)   // subtle border
+                    .stroke(AppTheme.Colors.overlay, lineWidth: 1)   // subtle border
             )
-            .shadow(color: .black.opacity(0.30), radius: 18, y: 10)
+            .shadow(color: AppTheme.Shadows.button, radius: 18, y: 10)
             .padding(.horizontal, 36)
         }
-    }
-}
-
-
-private extension View {
-    func fieldStyle() -> some View {
-        self
-            .autocorrectionDisabled()
-            .textInputAutocapitalization(.never)
-            .padding(.horizontal, 18)
-            .frame(height: 52)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.white.opacity(0.05))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(.white.opacity(0.45), lineWidth: 1)
-                    )
-            )
-            .foregroundStyle(.white)
     }
 }
 
