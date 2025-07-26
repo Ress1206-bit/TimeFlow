@@ -13,10 +13,10 @@ struct TabBarView: View {
     
     private let tabItems = [
         TabItem(icon: "house.fill", title: "Home", tag: 0),
-        TabItem(icon: "message.fill", title: "Assistant", tag: 1),
-        TabItem(icon: "target", title: "Goals", tag: 2),
-        TabItem(icon: "chart.bar.fill", title: "Analytics", tag: 3),
-        TabItem(icon: "person.circle.fill", title: "Account", tag: 4)
+        TabItem(icon: "target", title: "Goals", tag: 1),
+        TabItem(icon: "person.circle", title: "Commitments", tag: 2),
+        TabItem(icon: "person.circle", title: "Commitments", tag: 3),
+        TabItem(icon: "chart.bar.fill", title: "Analytics", tag: 4),
     ]
     
     var body: some View {

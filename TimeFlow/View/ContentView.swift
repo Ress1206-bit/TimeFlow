@@ -23,20 +23,19 @@ struct ContentView: View {
             
         } else if selectedTab == 1 {
             
-            ChatView(selectedTab: $selectedTab)
-                .environmentObject(chatVM)
+            GoalsDisplayView(selectedTab: $selectedTab)
             
         } else if selectedTab == 2 {
             
-             GoalsDisplayView(selectedTab: $selectedTab)
+            AssignmentsView(selectedTabPage: $selectedTab)
             
         } else if selectedTab == 3 {
             
-            AnalyticsView(selectedTab: $selectedTab)
+            ExtraCommitmentsView(selectedTab: $selectedTab)
             
         } else if selectedTab == 4 {
             
-            AccountView()
+            AnalyticsView(selectedTab: $selectedTab)
             
         }
     }

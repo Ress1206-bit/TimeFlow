@@ -28,6 +28,11 @@ class ContentModel {
     // Add UI loading state that persists across views
     var isGeneratingSchedule = false
     
+    // Credits system for AI schedule updates
+    var dailyCredits: Int = 6
+    private let maxDailyCredits = 6
+    private let creditsResetKey = "lastCreditsReset"
+    
     private var showAlert: Bool = false
     
     private var email: String = ""
@@ -69,10 +74,15 @@ class ContentModel {
                 do {
                     try await fetchUser()
                     print("✅ User data fetched successfully")
+                    // Reset credits if needed after login
+                    checkAndResetCreditsIfNeeded()
                 } catch {
                     print("❌ Failed to fetch user data: \(error)")
                 }
             }
+        } else if loggedIn {
+            // User already logged in, just check credits
+            checkAndResetCreditsIfNeeded()
         }
     }
     
@@ -97,6 +107,7 @@ class ContentModel {
     
     // get user!!
     func fetchUser() async throws {
+        print("🔄 Fetching user data...")
         guard let uid = Auth.auth().currentUser?.uid else {
             throw NSError(domain: "ContentModel", code: 401,
                           userInfo: [NSLocalizedDescriptionKey : "Not signed in"])
@@ -107,10 +118,20 @@ class ContentModel {
             .document(uid)
             .getDocument()
 
-        guard snapshot.exists else { return }
+        guard snapshot.exists else { 
+            print("❌ User document does not exist")
+            return 
+        }
 
-        // Decode user using Codable
-        user = try snapshot.data(as: User.self)
+        print("✅ User document found, decoding...")
+
+        do {
+            user = try snapshot.data(as: User.self)
+            print("✅ User decoded successfully with \(user?.currentSchedule.count ?? 0) events")
+        } catch {
+            print("❌ Failed to decode user with Codable: \(error)")
+            throw error
+        }
         
         // Ensure name and email are properly populated from the database
         if let name = snapshot.get("name") as? String {
@@ -120,33 +141,11 @@ class ContentModel {
             user?.email = email
         }
         
-        // Handle currentSchedule separately as it might need special decoding from Firestore
-        if let scheduleData = snapshot.get("currentSchedule") as? [[String: Any]] {
-            let events = scheduleData.compactMap { eventDict -> Event? in
-                guard let idString = eventDict["id"] as? String,
-                      let id = UUID(uuidString: idString),
-                      let startTimestamp = eventDict["start"] as? Timestamp,
-                      let endTimestamp = eventDict["end"] as? Timestamp,
-                      let title = eventDict["title"] as? String,
-                      let eventTypeString = eventDict["eventType"] as? String,
-                      let eventType = EventType(rawValue: eventTypeString) else {
-                    return nil
-                }
-                
-                return Event(
-                    id: id,
-                    start: startTimestamp.dateValue(),
-                    end: endTimestamp.dateValue(),
-                    title: title,
-                    eventType: eventType
-                )
-            }
-            user?.currentSchedule = events
+        print("✅ User fetch complete - currentSchedule has \(self.user?.currentSchedule.count ?? 0) events")
+        
+        // Save backup of the successfully decoded schedule
+        if let events = user?.currentSchedule, !events.isEmpty {
             saveScheduleBackup(events: events)
-            
-        } else {
-            // Save empty backup if no schedule
-            saveScheduleBackup(events: [])
         }
         
         // Set up listener if not already done
@@ -382,13 +381,21 @@ class ContentModel {
         
         // Convert events to Firestore-compatible format
         let eventsData = events.map { event in
-            return [
+            var eventData: [String: Any] = [
                 "id": event.id.uuidString,
                 "start": Timestamp(date: event.start),
                 "end": Timestamp(date: event.end),
                 "title": event.title,
+                "icon": event.icon,
                 "eventType": event.eventType.rawValue
             ]
+            
+            // Only add colorName if it exists
+            if let colorName = event.colorName {
+                eventData["colorName"] = colorName
+            }
+            
+            return eventData
         }
         
         do {
@@ -481,6 +488,7 @@ class ContentModel {
     }
     
     func refreshUserData() async throws {
+        print("🔄 Refreshing user data...")
         guard let uid = currentUID() else {
             throw NSError(domain: "ContentModel", code: 401, userInfo: [NSLocalizedDescriptionKey: "Not signed in"])
         }
@@ -490,50 +498,34 @@ class ContentModel {
             .document(uid)
             .getDocument()
 
-        guard snapshot.exists else { return }
+        guard snapshot.exists else { 
+            print("❌ User document does not exist")
+            return 
+        }
 
-        // Decode user using Codable
-        let freshUser = try snapshot.data(as: User.self)
+        print("✅ User document found, decoding...")
         
-        // Handle currentSchedule separately as it might need special decoding from Firestore
-        if let scheduleData = snapshot.get("currentSchedule") as? [[String: Any]] {
-            let events = scheduleData.compactMap { eventDict -> Event? in
-                guard let idString = eventDict["id"] as? String,
-                      let id = UUID(uuidString: idString),
-                      let startTimestamp = eventDict["start"] as? Timestamp,
-                      let endTimestamp = eventDict["end"] as? Timestamp,
-                      let title = eventDict["title"] as? String,
-                      let eventTypeString = eventDict["eventType"] as? String,
-                      let eventType = EventType(rawValue: eventTypeString) else {
-                    return nil
-                }
-                
-                return Event(
-                    id: id,
-                    start: startTimestamp.dateValue(),
-                    end: endTimestamp.dateValue(),
-                    title: title,
-                    eventType: eventType
-                )
-            }
-            
-            var updatedUser = freshUser
-            updatedUser.name = snapshot.get("name") as? String ?? freshUser.name
-            updatedUser.email = snapshot.get("email") as? String ?? freshUser.email
-            updatedUser.currentSchedule = events
+        do {
+            user = try snapshot.data(as: User.self)
+            print("✅ User refreshed successfully with \(user?.currentSchedule.count ?? 0) events")
+        } catch {
+            print("❌ Failed to decode user during refresh: \(error)")
+            throw error
+        }
         
-            self.user = updatedUser
-            saveScheduleBackup(events: events)
+        // Ensure name and email are properly populated from the database
+        if let name = snapshot.get("name") as? String {
+            user?.name = name
+        }
+        if let email = snapshot.get("email") as? String {
+            user?.email = email
+        }
         
-        } else {
-            // No schedule data field exists - treat as empty
-            var updatedUser = freshUser
-            updatedUser.name = snapshot.get("name") as? String ?? freshUser.name
-            updatedUser.email = snapshot.get("email") as? String ?? freshUser.email
-            updatedUser.currentSchedule = []
+        print("✅ User data refresh complete - currentSchedule has \(self.user?.currentSchedule.count ?? 0) events")
         
-            self.user = updatedUser
-            saveScheduleBackup(events: [])
+        // Save backup of the successfully decoded schedule
+        if let events = user?.currentSchedule, !events.isEmpty {
+            saveScheduleBackup(events: events, isFromFirebase: true)
         }
     }
     
@@ -564,51 +556,22 @@ class ContentModel {
                 guard let snapshot = snapshot, snapshot.exists else { return }
                 
                 do {
-                    // Decode the updated user data
+                    print("🔄 User listener triggered - decoding updated user data")
                     let updatedUser = try snapshot.data(as: User.self)
                     
-                    // Handle currentSchedule separately for proper decoding
-                    if let scheduleData = snapshot.get("currentSchedule") as? [[String: Any]] {
-                        let events = scheduleData.compactMap { eventDict -> Event? in
-                            guard let idString = eventDict["id"] as? String,
-                                  let id = UUID(uuidString: idString),
-                                  let startTimestamp = eventDict["start"] as? Timestamp,
-                                  let endTimestamp = eventDict["end"] as? Timestamp,
-                                  let title = eventDict["title"] as? String,
-                                  let eventTypeString = eventDict["eventType"] as? String,
-                                  let eventType = EventType(rawValue: eventTypeString) else {
-                                return nil
-                            }
-                            
-                            return Event(
-                                id: id,
-                                start: startTimestamp.dateValue(),
-                                end: endTimestamp.dateValue(),
-                                title: title,
-                                eventType: eventType
-                            )
-                        }
-                        
-                        var finalUser = updatedUser
-                        finalUser.name = snapshot.get("name") as? String ?? updatedUser.name
-                        finalUser.email = snapshot.get("email") as? String ?? updatedUser.email
-                        finalUser.currentSchedule = events
-                        
-                        // Always update to match Firebase exactly
-                        self.user = finalUser
-                        
-                        // Save backup AFTER updating user, and mark as Firebase-sourced
-                        self.saveScheduleBackup(events: events, isFromFirebase: true)
-                        
-                    } else {
-                        // No schedule data field exists - treat as empty
-                        var finalUser = updatedUser
-                        finalUser.name = snapshot.get("name") as? String ?? updatedUser.name
-                        finalUser.email = snapshot.get("email") as? String ?? updatedUser.email
-                        finalUser.currentSchedule = []
-                        
-                        self.user = finalUser
-                        self.saveScheduleBackup(events: [], isFromFirebase: true)
+                    // Ensure name and email are properly populated from the database
+                    var finalUser = updatedUser
+                    finalUser.name = snapshot.get("name") as? String ?? updatedUser.name
+                    finalUser.email = snapshot.get("email") as? String ?? updatedUser.email
+                    
+                    // Always update to match Firebase exactly
+                    self.user = finalUser
+                    
+                    print("✅ User listener update complete - currentSchedule has \(self.user?.currentSchedule.count ?? 0) events")
+                    
+                    // Save backup AFTER updating user, and mark as Firebase-sourced
+                    if !finalUser.currentSchedule.isEmpty {
+                        self.saveScheduleBackup(events: finalUser.currentSchedule, isFromFirebase: true)
                     }
                     
                 } catch {
@@ -716,4 +679,149 @@ class ContentModel {
             }
         }
     }
+    
+    // MARK: - Credits Management
+    
+    func checkAndResetCreditsIfNeeded() {
+        // Temporarily force to 6 for testing
+        dailyCredits = maxDailyCredits
+        UserDefaults.standard.set(dailyCredits, forKey: "dailyCredits")
+        return
+        
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        
+        if let lastReset = UserDefaults.standard.object(forKey: creditsResetKey) as? Date {
+            let lastResetDay = calendar.startOfDay(for: lastReset)
+            
+            // If it's a new day, reset credits
+            if today > lastResetDay {
+                dailyCredits = maxDailyCredits
+                UserDefaults.standard.set(Date(), forKey: creditsResetKey)
+                print("🔄 Credits reset to \(maxDailyCredits) for new day")
+            } else {
+                // Load saved credits for today
+                dailyCredits = UserDefaults.standard.object(forKey: "dailyCredits") as? Int ?? maxDailyCredits
+            }
+        } else {
+            // First time setup
+            dailyCredits = maxDailyCredits
+            UserDefaults.standard.set(Date(), forKey: creditsResetKey)
+        }
+    }
+    
+    func useCredit() -> Bool {
+        guard dailyCredits > 0 else { return false }
+        
+        dailyCredits -= 1
+        UserDefaults.standard.set(dailyCredits, forKey: "dailyCredits")
+        print("💳 Used credit. Remaining: \(dailyCredits)")
+        return true
+    }
+    
+    func hasCreditsRemaining() -> Bool {
+        return dailyCredits > 0
+    }
+    
+    // MARK: - Testing Helper
+    func resetCreditsForTesting() {
+        dailyCredits = maxDailyCredits
+        UserDefaults.standard.set(dailyCredits, forKey: "dailyCredits")
+        UserDefaults.standard.set(Date(), forKey: creditsResetKey)
+        print("🔄 Credits manually reset to \(maxDailyCredits) for testing")
+    }
+    
+    // MARK: - AI Schedule Update
+    
+    func updateScheduleWithAI(userMessage: String, currentEvents: [Event]) async throws -> [Event] {
+        guard let user = self.user else {
+            throw NSError(domain: "ContentModel", code: 400, userInfo: [NSLocalizedDescriptionKey: "No user found"])
+        }
+        
+        guard hasCreditsRemaining() else {
+            throw NSError(domain: "ContentModel", code: 429, userInfo: [NSLocalizedDescriptionKey: "No credits remaining"])
+        }
+        
+        // Use a credit
+        _ = useCredit()
+        
+        // Filter to only current and future events (no NGTimes, no past events)
+        let now = Date()
+        let futureEvents = currentEvents.filter { event in
+            event.end > now && !event.title.contains("NGTime")
+        }
+        
+        // Create simple, direct prompt with current schedule
+        let scheduleContext = futureEvents.map { event in
+            let startTime = event.start.hhmmString
+            let endTime = event.end.hhmmString
+            return "{\n  \"title\": \"\(event.title)\",\n  \"start\": \"\(startTime)\",\n  \"end\": \"\(endTime)\",\n  \"id\": \"\(event.id.uuidString)\"\n}"
+        }.joined(separator: ",\n")
+        
+        let currentScheduleJSON = futureEvents.isEmpty ? "[]" : "[\n\(scheduleContext)\n]"
+        
+        // Create enhanced prompt that better handles event types
+        let prompt = """
+        SCHEDULE EDITOR - Current schedule (JSON format):
+        \(currentScheduleJSON)
+
+        USER REQUEST: \(userMessage)
+
+        IMPORTANT CONTEXT:
+        - If user mentions "assignment", "homework", or "worksheet" - this should be EventType: assignment
+        - If user mentions "work" as in job/employment - this should be EventType: work  
+        - If user mentions "goal", "exercise", "workout" - this should be EventType: goal
+        - If user mentions "test", "exam", "study for test" - this should be EventType: testStudy
+        - If user mentions "meal", "lunch", "dinner", "breakfast" - this should be EventType: meal
+        - Default to EventType: other for unclear cases
+
+        EDITING RULES:
+        1. ONLY modify what the user specifically requested
+        2. Keep all other events exactly the same
+        3. Use 24-hour time format (HH:mm)
+        4. Do NOT add random work meetings or job-related events unless user specifically mentions their job
+        5. Preserve all existing event IDs for unchanged events
+        6. For new events, create appropriate titles (e.g. "Math Worksheet" not "Work")
+
+        Return ONLY the complete updated JSON array with the same format. No explanations.
+        Example format:
+        [
+          {"title": "Math Worksheet", "start": "14:00", "end": "15:00", "id": "new-uuid"}
+        ]
+        """
+        
+        // Call the existing userInfoToSchedule function with the enhanced prompt
+        let updatedEvents = try await userInfoToSchedule(
+            user: user,
+            history: self.userHistory ?? UserHistory(),
+            note: prompt
+        )
+        
+        // Filter to only future events to avoid showing past ones or NGTimes
+        let filteredUpdatedEvents = updatedEvents.filter { event in
+            event.end > now && !event.title.contains("NGTime")
+        }
+        
+        // Update user's current schedule (preserve past events and NGTimes)
+        let pastEvents = currentEvents.filter { event in
+            event.end <= now || event.title.contains("NGTime")
+        }
+        let completeSchedule = pastEvents + filteredUpdatedEvents.sorted { $0.start < $1.start }
+        
+        self.user?.currentSchedule = completeSchedule
+        
+        // Save to Firebase
+        try await saveCurrentScheduleToFirebase(events: completeSchedule)
+        
+        return completeSchedule
+    }
+}
+
+// MARK: - DateFormatter Extensions
+private extension DateFormatter {
+    static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter
+    }()
 }

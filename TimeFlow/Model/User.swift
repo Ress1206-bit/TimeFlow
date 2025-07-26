@@ -49,6 +49,49 @@ struct User: Codable, Hashable {
     
     //Subscription
     var subscribed: Bool = false
+    
+    init() {
+        // All properties already have default values above
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case name, email, accountCreated, ageGroup, awakeHours, schoolHours
+        case classes, collegeCourses, workHours, goals, recurringCommitments
+        case assignments, tests, todaysAwakeHours, currentSchedule, subscribed
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        name = try container.decodeIfPresent(String.self, forKey: .name) ?? ""
+        email = try container.decodeIfPresent(String.self, forKey: .email) ?? ""
+        accountCreated = try container.decodeIfPresent(Timestamp.self, forKey: .accountCreated) ?? Timestamp(date: Date())
+        ageGroup = try container.decodeIfPresent(AgeGroup.self, forKey: .ageGroup) ?? .youngProfessional
+        awakeHours = try container.decodeIfPresent(AwakeHours.self, forKey: .awakeHours) ?? AwakeHours(wakeTime: "07:00", sleepTime: "23:00")
+        schoolHours = try container.decodeIfPresent(SchoolHours.self, forKey: .schoolHours) ?? SchoolHours(startTime: "08:00", endTime: "15:00")
+        classes = try container.decodeIfPresent([String].self, forKey: .classes) ?? []
+        collegeCourses = try container.decodeIfPresent([CollegeCourse].self, forKey: .collegeCourses) ?? []
+        workHours = try container.decodeIfPresent([DayHours].self, forKey: .workHours) ?? Weekday.allCases.map {
+            DayHours(day: $0, enabled: [.monday, .tuesday, .wednesday, .thursday, .friday].contains($0), startTime: "09:00", endTime: "17:00")
+        }
+        goals = try container.decodeIfPresent([Goal].self, forKey: .goals) ?? []
+        recurringCommitments = try container.decodeIfPresent([RecurringCommitment].self, forKey: .recurringCommitments) ?? []
+        assignments = try container.decodeIfPresent([Assignment].self, forKey: .assignments) ?? []
+        tests = try container.decodeIfPresent([Test].self, forKey: .tests) ?? []
+        todaysAwakeHours = try container.decodeIfPresent(AwakeHours.self, forKey: .todaysAwakeHours)
+        subscribed = try container.decodeIfPresent(Bool.self, forKey: .subscribed) ?? false
+        
+        // Handle currentSchedule with safe decoding - provide default empty array
+        currentSchedule = []
+        if container.contains(.currentSchedule) {
+            do {
+                currentSchedule = try container.decode([Event].self, forKey: .currentSchedule)
+            } catch {
+                print("⚠️ Failed to decode currentSchedule, using empty array: \(error)")
+                currentSchedule = []
+            }
+        }
+    }
 }
 
 
@@ -243,7 +286,24 @@ struct Event: Identifiable, Codable, Hashable {
     var start: Date
     var end: Date
     var title: String
+    var icon: String = "calendar"
     var eventType: EventType
+    var colorName: String?
+    
+    var color: Color {
+        return Color.activityColor(colorName ?? "red")
+    }
+    
+    // Keep the existing init for manual creation
+    init(id: UUID = UUID(), start: Date, end: Date, title: String, icon: String = "calendar", eventType: EventType, colorName: String? = nil) {
+        self.id = id
+        self.start = start
+        self.end = end
+        self.title = title
+        self.icon = icon
+        self.eventType = eventType
+        self.colorName = colorName
+    }
 }
 
 
@@ -253,10 +313,8 @@ enum EventType: String, Codable, CaseIterable {
     case work = "Work"
     case goal = "Goal"
     case recurringCommitment = "Recurring Commitment"
-    case extraCurricular = "Extra Curricular"
     case assignment = "Assignment"
     case testStudy = "Test Study"
-    case breakTime = "Break"
-    case leisure = "Leisure"
+    case meal = "Meal"
     case other = "Other"
 }

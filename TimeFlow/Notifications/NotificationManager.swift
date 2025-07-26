@@ -299,6 +299,83 @@ class NotificationManager: ObservableObject {
             await scheduleAssignmentDeadlineReminder(assignment: assignment)
         }
     }
+    
+    // MARK: - Debug and Testing Methods
+    
+    func testAllNotifications() async {
+        print("🧪 Testing all notification types...")
+        
+        // Test wake-up schedule notification
+        await sendWakeUpScheduleNotification(eventCount: 5)
+        
+        // Test manual generation notification  
+        await sendManualGenerationNotification(eventCount: 3)
+        
+        // Test day complete notification
+        await sendDayCompleteNotification()
+        
+        print("✅ Test notifications sent!")
+    }
+    
+    func testEventReminder() async {
+        // Create a test event that starts in 1 minute
+        let testEvent = Event(
+            id: UUID(),
+            start: Date().addingTimeInterval(60), // 1 minute from now
+            end: Date().addingTimeInterval(3660), // 1 hour 1 minute from now
+            title: "Test Event",
+            icon: "graduationcap.fill",
+            eventType: .testStudy,
+            colorName: "yellow"
+        )
+        
+        // Schedule reminder for 30 seconds before (so it fires in 30 seconds)
+        await scheduleEventReminder(for: testEvent, minutesBefore: 0)
+        print("🧪 Test event reminder scheduled for 30 seconds from now")
+    }
+    
+    func checkPendingNotifications() async {
+        let center = UNUserNotificationCenter.current()
+        let requests = await center.pendingNotificationRequests()
+        
+        print("📋 Pending Notifications (\(requests.count)):")
+        for request in requests {
+            let triggerInfo: String
+            if let trigger = request.trigger as? UNTimeIntervalNotificationTrigger {
+                let fireDate = Date().addingTimeInterval(trigger.timeInterval)
+                triggerInfo = "fires at \(fireDate.formatted(date: .abbreviated, time: .shortened))"
+            } else if let trigger = request.trigger as? UNCalendarNotificationTrigger {
+                triggerInfo = "calendar trigger: \(trigger.dateComponents)"
+            } else {
+                triggerInfo = "immediate"
+            }
+            
+            print("  • \(request.identifier): \(request.content.title) - \(triggerInfo)")
+        }
+        
+        if requests.isEmpty {
+            print("  No pending notifications")
+        }
+    }
+    
+    func checkNotificationSettings() async {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        
+        print("🔔 Notification Settings:")
+        print("  • Authorization: \(settings.authorizationStatus.description)")
+        print("  • Alert Setting: \(settings.alertSetting.description)")
+        print("  • Badge Setting: \(settings.badgeSetting.description)")
+        print("  • Sound Setting: \(settings.soundSetting.description)")
+        print("  • Critical Alert: \(settings.criticalAlertSetting.description)")
+        print("  • Announcement: \(settings.announcementSetting.description)")
+    }
+    
+    func clearAllTestNotifications() {
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+        print("🧹 Cleared all notifications")
+    }
 }
 
 // MARK: - Notification Categories Setup
@@ -359,5 +436,30 @@ extension NotificationManager {
         ]
         
         UNUserNotificationCenter.current().setNotificationCategories(Set(categories))
+    }
+}
+
+// MARK: - Extensions for better debugging
+extension UNAuthorizationStatus {
+    var description: String {
+        switch self {
+        case .notDetermined: return "Not Determined"
+        case .denied: return "Denied"
+        case .authorized: return "Authorized"
+        case .provisional: return "Provisional"
+        case .ephemeral: return "Ephemeral"
+        @unknown default: return "Unknown"
+        }
+    }
+}
+
+extension UNNotificationSetting {
+    var description: String {
+        switch self {
+        case .notSupported: return "Not Supported"
+        case .disabled: return "Disabled"
+        case .enabled: return "Enabled"
+        @unknown default: return "Unknown"
+        }
     }
 }

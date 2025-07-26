@@ -15,129 +15,251 @@ struct SignInView: View {
     let email: String
     
     @State private var password = ""
-
-    
+    @State private var isBusy = false
+    @State private var errorMessage: String?
     @State private var showPassword = false
 
-    // MARK: - UI
+    private var isFormValid: Bool {
+        !password.isEmpty
+    }
+
     var body: some View {
         ZStack {
-        
+            // Modern background gradient matching the app theme
             LinearGradient(
                 colors: [
-                    AppTheme.Colors.secondary,                    // deep navy
-                    AppTheme.Colors.accent.opacity(0.8),          // accent lavender
-                    AppTheme.Colors.primary                       // primary blue
+                    AppTheme.Colors.background,
+                    AppTheme.Colors.accent.opacity(0.1),
+                    AppTheme.Colors.secondary.opacity(0.2),
+                    AppTheme.Colors.background
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
 
-            // 2. GLASS CARD ----------------------------------------------------
-            VStack(spacing: 28) {
-
-                // Title
-                Text("Sign Into Your\nAccount")
-                    .font(.system(size: 34, weight: .semibold, design: .rounded))
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(AppTheme.Colors.textPrimary)
-
-                // E-mail label
-                Text(email)
-                    .font(.headline)
-                    .foregroundStyle(AppTheme.Colors.textSecondary)
-
-                // Password field
-                ZStack {
-                    if showPassword {
-                        TextField("", text: $password,
-                                  prompt: Text("Password").foregroundStyle(AppTheme.Colors.textPrimary))
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                        .padding(.horizontal, 18)
-                        .frame(height: 52)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(AppTheme.Colors.textPrimary.opacity(0.05))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(AppTheme.Colors.overlay, lineWidth: 1)
+            ScrollView {
+                VStack(spacing: 32) {
+                    // Header section
+                    VStack(spacing: 16) {
+                        // Back button
+                        HStack {
+                            Button {
+                                dismiss()
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "chevron.left")
+                                        .font(.system(size: 16, weight: .semibold))
+                                    Text("Back")
+                                        .font(.system(size: 16, weight: .medium))
+                                }
+                                .foregroundColor(AppTheme.Colors.textSecondary)
+                            }
+                            
+                            Spacer()
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.top, 8)
+                        
+                        // Icon and title
+                        VStack(spacing: 20) {
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            AppTheme.Colors.accent,
+                                            AppTheme.Colors.accent.opacity(0.8)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
                                 )
-                        )
-                        .foregroundStyle(AppTheme.Colors.textPrimary)
-                    } else {
-                        SecureField("", text: $password,
-                                    prompt: Text("Password").foregroundStyle(AppTheme.Colors.textPrimary))
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                        .padding(.horizontal, 18)
-                        .frame(height: 52)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(AppTheme.Colors.textPrimary.opacity(0.05))
+                                .frame(width: 64, height: 64)
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(AppTheme.Colors.overlay, lineWidth: 1)
+                                    Image(systemName: "person.crop.circle")
+                                        .font(.system(size: 28, weight: .medium))
+                                        .foregroundColor(.white)
                                 )
-                        )
-                        .foregroundStyle(AppTheme.Colors.textPrimary)
+                                .shadow(color: AppTheme.Colors.accent.opacity(0.3), radius: 12, y: 4)
+                            
+                            VStack(spacing: 8) {
+                                Text("Welcome Back")
+                                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                                    .foregroundColor(AppTheme.Colors.textPrimary)
+                                
+                                Text(email)
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(AppTheme.Colors.accent)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        Capsule()
+                                            .fill(AppTheme.Colors.accent.opacity(0.1))
+                                    )
+                            }
+                        }
                     }
 
-                    // Eye icon, aligned to the trailing edge
-                    HStack {
-                        Spacer()
+                    // Form section
+                    VStack(spacing: 24) {
+                        // Password field
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Password")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(AppTheme.Colors.textPrimary)
+                            
+                            ZStack {
+                                if showPassword {
+                                    TextField("Enter your password", text: $password)
+                                        .fieldStyle()
+                                } else {
+                                    SecureField("Enter your password", text: $password)
+                                        .fieldStyle()
+                                }
+
+                                HStack {
+                                    Spacer()
+                                    Button {
+                                        showPassword.toggle()
+                                    } label: {
+                                        Image(systemName: showPassword ? "eye" : "eye.slash")
+                                            .font(.system(size: 16))
+                                            .foregroundColor(AppTheme.Colors.textTertiary)
+                                    }
+                                    .padding(.trailing, 16)
+                                }
+                            }
+                        }
+                        
+                        // Forgot password link
+                        HStack {
+                            Spacer()
+                            Button("Forgot Password?") {
+                                // TODO: Implement forgot password
+                            }
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(AppTheme.Colors.accent)
+                        }
+                        
+                        // Error message
+                        if let errorMessage = errorMessage {
+                            HStack(spacing: 8) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.red)
+                                
+                                Text(errorMessage)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.red)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(.red.opacity(0.1))
+                            )
+                        }
+
+                        // Sign in button
                         Button {
-                            showPassword.toggle()
+                            signIn()
                         } label: {
-                            Image(systemName: showPassword ? "eye" : "eye.slash")
-                                .foregroundStyle(AppTheme.Colors.textTertiary)
+                            HStack(spacing: 8) {
+                                if isBusy {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                        .tint(.white)
+                                } else {
+                                    Text("Sign In")
+                                        .font(.system(size: 16, weight: .semibold))
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(
+                                        isFormValid && !isBusy ?
+                                        LinearGradient(
+                                            colors: [AppTheme.Colors.accent, AppTheme.Colors.accent.opacity(0.8)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ) :
+                                        LinearGradient(
+                                            colors: [AppTheme.Colors.textTertiary.opacity(0.5), AppTheme.Colors.textTertiary.opacity(0.3)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .shadow(
+                                        color: isFormValid && !isBusy ? AppTheme.Colors.accent.opacity(0.3) : .clear,
+                                        radius: 8,
+                                        y: 4
+                                    )
+                            )
+                            .foregroundColor(.white)
                         }
-                        .padding(.trailing, 18)          // same horizontal padding as field
-                    }
-                }
-
-                // Action button
-                Button {
-                    Task {
-                        do {
-                            try await contentModel.signIn(email: email, password: password)
-                        } catch {
-                            print("Sign in failed: \(error.localizedDescription)")
+                        .disabled(!isFormValid || isBusy)
+                        .animation(.easeInOut(duration: 0.2), value: isFormValid)
+                        
+                        // Alternative sign in methods
+                        VStack(spacing: 16) {
+                            HStack {
+                                Rectangle()
+                                    .fill(AppTheme.Colors.overlay.opacity(0.3))
+                                    .frame(height: 1)
+                                
+                                Text("or")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(AppTheme.Colors.textTertiary)
+                                    .padding(.horizontal, 16)
+                                
+                                Rectangle()
+                                    .fill(AppTheme.Colors.overlay.opacity(0.3))
+                                    .frame(height: 1)
+                            }
+                            
+                            Button("Try a different email") {
+                                dismiss()
+                            }
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(AppTheme.Colors.textSecondary)
                         }
                     }
-                } label: {
-                    Text("Sign In")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity, minHeight: 52)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(AppTheme.Colors.primary)
-                                .shadow(color: AppTheme.Shadows.icon,
-                                        radius: 18, y: 10)
-                        )
-                        .foregroundStyle(AppTheme.Colors.textPrimary)
+                    .padding(.horizontal, 32)
                 }
-                .buttonStyle(.plain)
-
+                .padding(.bottom, 32)
             }
-            .padding(32)
-            .background(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(.ultraThinMaterial.opacity(0.55))      // glass blur + tint
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .stroke(AppTheme.Colors.overlay, lineWidth: 1)   // subtle border
-            )
-            .shadow(color: AppTheme.Shadows.button, radius: 18, y: 10)
-            .padding(.horizontal, 36)
+        }
+        .navigationBarHidden(true)
+    }
+    
+    private func signIn() {
+        guard isFormValid && !isBusy else { return }
+        
+        isBusy = true
+        errorMessage = nil
+        
+        Task {
+            do {
+                try await contentModel.signIn(email: email, password: password)
+                
+                await MainActor.run {
+                    isBusy = false
+                }
+            } catch {
+                await MainActor.run {
+                    isBusy = false
+                    errorMessage = "Invalid email or password. Please try again."
+                }
+            }
         }
     }
 }
 
-
 #Preview {
-    SignInView(email: "alex@example.com")
-        .environment(ContentModel())
+    NavigationStack {
+        SignInView(email: "alex@example.com")
+            .environment(ContentModel())
+    }
 }

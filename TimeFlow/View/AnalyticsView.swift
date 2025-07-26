@@ -1408,7 +1408,7 @@ private extension AnalyticsView {
     var personalTimePercentage: Double {
         let allEvents = recentDailyLogs.flatMap { $0.events }
         let personalEvents = allEvents.filter { event in
-            event.eventType == .goal || event.eventType == .leisure || event.eventType == .other
+            event.eventType == .goal || event.eventType == .meal || event.eventType == .other
         }
         
         let totalMinutes = allEvents.reduce(0.0) { sum, event in
@@ -1424,7 +1424,7 @@ private extension AnalyticsView {
     
     var restTimePercentage: Double {
         let allEvents = recentDailyLogs.flatMap { $0.events }
-        let restEvents = allEvents.filter { $0.eventType == .breakTime }
+        let restEvents = allEvents.filter { $0.eventType == .other }
         
         let totalMinutes = allEvents.reduce(0.0) { sum, event in
             sum + event.end.timeIntervalSince(event.start) / 60
@@ -1607,10 +1607,8 @@ private extension AnalyticsView {
         case .recurringCommitment: return Color.green
         case .assignment: return Color.orange
         case .testStudy: return Color.red
-        case .breakTime: return Color.mint
-        case .leisure: return Color.pink
+        case .meal: return Color.mint
         case .other: return Color.gray
-        case .extraCurricular: return Color.red
         }
     }
 }

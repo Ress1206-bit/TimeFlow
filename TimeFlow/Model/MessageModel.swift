@@ -17,4 +17,13 @@ struct Message: Identifiable, Codable, Hashable {
     let role: Role
     let text: String
     let timestamp: Date
+    let isThinking: Bool
+    
+    init(id: String, role: Role, text: String, timestamp: Date, isThinking: Bool = false) {
+        self.id = id
+        self.role = role
+        self.text = text
+        self.timestamp = timestamp
+        self.isThinking = isThinking
+    }
 }

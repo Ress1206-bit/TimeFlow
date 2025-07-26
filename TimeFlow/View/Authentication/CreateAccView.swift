@@ -18,171 +18,305 @@ struct CreateAccView: View {
     @State private var fullName = ""
     @State private var password = ""
     @State private var isBusy = false
+    @State private var errorMessage: String?
     
     @State private var age = 18
     @State private var showAgeSel = false
     
     @State private var showPassword = false
 
-    // MARK: - UI
+    private var isFormValid: Bool {
+        !fullName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        password.count >= 6 &&
+        age >= 13
+    }
+
     var body: some View {
         ZStack {
-        
+            // Modern background gradient matching the app theme
             LinearGradient(
                 colors: [
-                    AppTheme.Colors.secondary,                    // deep navy
-                    AppTheme.Colors.accent.opacity(0.8),          // accent lavender  
-                    AppTheme.Colors.primary                       // primary blue
+                    AppTheme.Colors.background,
+                    AppTheme.Colors.accent.opacity(0.1),
+                    AppTheme.Colors.secondary.opacity(0.2),
+                    AppTheme.Colors.background
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
 
-            // 2. GLASS CARD ----------------------------------------------------
-            VStack(spacing: 28) {
-
-                // Title
-                Text("Create Your\nAccount")
-                    .font(.system(size: 34, weight: .semibold, design: .rounded))
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(AppTheme.Colors.textPrimary)
-
-                // E-mail label
-                Text(email)
-                    .font(.headline)
-                    .foregroundStyle(AppTheme.Colors.textSecondary)
-
-                // Name field
-                TextField("", text: $fullName, prompt: Text("Full name").foregroundStyle(AppTheme.Colors.textPrimary))
-                    .fieldStyle()
-                
-                //Birthday
-                VStack(alignment: .leading, spacing: 6) {
-
-                    // Compact row (tap to expand)
-                    Button {
-                        withAnimation(.easeInOut) { showAgeSel.toggle() }
-                    } label: {
+            ScrollView {
+                VStack(spacing: 32) {
+                    // Header section
+                    VStack(spacing: 16) {
+                        // Back button
                         HStack {
-                            Text("\(age) years old")
-                                .foregroundStyle(AppTheme.Colors.textPrimary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-
-                            Image(systemName: "chevron.down")
-                                .rotationEffect(.degrees(showAgeSel ? 180 : 0))
-                                .foregroundStyle(AppTheme.Colors.textTertiary)
-                                .animation(.easeInOut(duration: 0.25), value: showAgeSel)
+                            Button {
+                                dismiss()
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "chevron.left")
+                                        .font(.system(size: 16, weight: .semibold))
+                                    Text("Back")
+                                        .font(.system(size: 16, weight: .medium))
+                                }
+                                .foregroundColor(AppTheme.Colors.textSecondary)
+                            }
+                            
+                            Spacer()
                         }
-                        .padding(.horizontal, 18)
-                        .frame(height: 52)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(AppTheme.Colors.textPrimary.opacity(0.05))
-                                .overlay(RoundedRectangle(cornerRadius: 12)
-                                    .stroke(AppTheme.Colors.overlay, lineWidth: 1))
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    // Wheel picker appears only when needed
-                    if showAgeSel {
-                        Picker("", selection: $age) {
-                            ForEach(5...100, id: \.self) { Text("\($0)").foregroundStyle(AppTheme.Colors.textPrimary) }
-                        }
-                        .pickerStyle(.wheel)
-                        .frame(maxWidth: .infinity, maxHeight: 120)
-                        .clipped()
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(AppTheme.Colors.textPrimary.opacity(0.08))
-                        )
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                    }
-                }
-
-                // Password field
-                ZStack {
-                    if showPassword {
-                        TextField("", text: $password,
-                                  prompt: Text("Password").foregroundStyle(AppTheme.Colors.textPrimary))
-                            .fieldStyle()
-                    } else {
-                        SecureField("", text: $password,
-                                    prompt: Text("Password").foregroundStyle(AppTheme.Colors.textPrimary))
-                            .fieldStyle()
-                    }
-
-                    // Eye icon, aligned to the trailing edge
-                    HStack {
-                        Spacer()
-                        Button {
-                            showPassword.toggle()
-                        } label: {
-                            Image(systemName: showPassword ? "eye" : "eye.slash")
-                                .foregroundStyle(AppTheme.Colors.textTertiary)
-                        }
-                        .padding(.trailing, 18)
-                    }
-                    .allowsHitTesting(!isBusy)
-                }
-
-                // Action button
-                Button {
-                    Task {
-                        guard !isBusy else { return }
-                        isBusy = true
+                        .padding(.horizontal, 24)
+                        .padding(.top, 8)
                         
-                        do {
-                            try await contentModel.createAccount(
-                                email: email,
-                                name: fullName,
-                                password: password)
+                        // Icon and title
+                        VStack(spacing: 20) {
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            AppTheme.Colors.accent,
+                                            AppTheme.Colors.accent.opacity(0.8)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 64, height: 64)
+                                .overlay(
+                                    Image(systemName: "person.badge.plus")
+                                        .font(.system(size: 28, weight: .medium))
+                                        .foregroundColor(.white)
+                                )
+                                .shadow(color: AppTheme.Colors.accent.opacity(0.3), radius: 12, y: 4)
                             
-                            print("before: \(contentModel.loggedIn)")
-                            contentModel.checkLogin()
-                            print(contentModel.loggedIn)
-                            
-                            isBusy = false
-                        } catch {
-                            let errorMessage = error.localizedDescription
-                            print(errorMessage)
+                            VStack(spacing: 8) {
+                                Text("Create Your Account")
+                                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                                    .foregroundColor(AppTheme.Colors.textPrimary)
+                                
+                                Text(email)
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(AppTheme.Colors.accent)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        Capsule()
+                                            .fill(AppTheme.Colors.accent.opacity(0.1))
+                                    )
+                            }
                         }
                     }
-                } label: {
-                    Text(isBusy ? "Creating…" : "Create Account")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity, minHeight: 52)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(AppTheme.Colors.primary)
-                                .shadow(color: AppTheme.Shadows.icon,
-                                        radius: 18, y: 10)
-                        )
-                        .foregroundStyle(AppTheme.Colors.textPrimary)
+
+                    // Form section
+                    VStack(spacing: 24) {
+                        // Full name field
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Full Name")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(AppTheme.Colors.textPrimary)
+                            
+                            TextField("Enter your full name", text: $fullName)
+                                .fieldStyle()
+                        }
+                        
+                        // Age selection
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Age")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(AppTheme.Colors.textPrimary)
+                            
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    showAgeSel.toggle()
+                                }
+                            } label: {
+                                HStack {
+                                    Text("\(age) years old")
+                                        .foregroundColor(AppTheme.Colors.textPrimary)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                                    Image(systemName: "chevron.down")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .rotationEffect(.degrees(showAgeSel ? 180 : 0))
+                                        .foregroundColor(AppTheme.Colors.textTertiary)
+                                        .animation(.easeInOut(duration: 0.25), value: showAgeSel)
+                                }
+                                .padding(.horizontal, 16)
+                                .frame(height: 52)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(AppTheme.Colors.cardBackground)
+                                        .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(AppTheme.Colors.overlay.opacity(0.2), lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(.plain)
+
+                            if showAgeSel {
+                                Picker("Age", selection: $age) {
+                                    ForEach(13...100, id: \.self) { ageValue in
+                                        Text("\(ageValue) years old")
+                                            .foregroundColor(AppTheme.Colors.textPrimary)
+                                            .tag(ageValue)
+                                    }
+                                }
+                                .pickerStyle(.wheel)
+                                .frame(height: 120)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(AppTheme.Colors.cardBackground)
+                                        .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+                                )
+                                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                            }
+                        }
+
+                        // Password field
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Password")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(AppTheme.Colors.textPrimary)
+                            
+                            ZStack {
+                                if showPassword {
+                                    TextField("Create a secure password", text: $password)
+                                        .fieldStyle()
+                                } else {
+                                    SecureField("Create a secure password", text: $password)
+                                        .fieldStyle()
+                                }
+
+                                HStack {
+                                    Spacer()
+                                    Button {
+                                        showPassword.toggle()
+                                    } label: {
+                                        Image(systemName: showPassword ? "eye" : "eye.slash")
+                                            .font(.system(size: 16))
+                                            .foregroundColor(AppTheme.Colors.textTertiary)
+                                    }
+                                    .padding(.trailing, 16)
+                                }
+                            }
+                            
+                            if !password.isEmpty && password.count < 6 {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "exclamationmark.circle.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.orange)
+                                    
+                                    Text("Password must be at least 6 characters")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.orange)
+                                }
+                                .padding(.horizontal, 4)
+                            }
+                        }
+                        
+                        // Error message
+                        if let errorMessage = errorMessage {
+                            HStack(spacing: 8) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.red)
+                                
+                                Text(errorMessage)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.red)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(.red.opacity(0.1))
+                            )
+                        }
+
+                        // Create account button
+                        Button {
+                            createAccount()
+                        } label: {
+                            HStack(spacing: 8) {
+                                if isBusy {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                        .tint(.white)
+                                } else {
+                                    Text("Create Account")
+                                        .font(.system(size: 16, weight: .semibold))
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(
+                                        isFormValid && !isBusy ?
+                                        LinearGradient(
+                                            colors: [AppTheme.Colors.accent, AppTheme.Colors.accent.opacity(0.8)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ) :
+                                        LinearGradient(
+                                            colors: [AppTheme.Colors.textTertiary.opacity(0.5), AppTheme.Colors.textTertiary.opacity(0.3)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .shadow(
+                                        color: isFormValid && !isBusy ? AppTheme.Colors.accent.opacity(0.3) : .clear,
+                                        radius: 8,
+                                        y: 4
+                                    )
+                            )
+                            .foregroundColor(.white)
+                        }
+                        .disabled(!isFormValid || isBusy)
+                        .animation(.easeInOut(duration: 0.2), value: isFormValid)
+
+                        // Terms and privacy
+                        Text("By creating an account, you agree to our **Terms of Service** and **Privacy Policy**")
+                            .font(.system(size: 13))
+                            .foregroundColor(AppTheme.Colors.textTertiary)
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(2)
+                    }
+                    .padding(.horizontal, 32)
                 }
-                .buttonStyle(.plain)
-                .disabled(isBusy)
-
-                // Fine-print
-                Text("By continuing you agree to our\nTerms & Privacy Policy.")
-                    .font(.footnote)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(AppTheme.Colors.textTertiary)
-                    .padding(.top, 12)
-
+                .padding(.bottom, 32)
             }
-            .padding(32)
-            .background(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(.ultraThinMaterial.opacity(0.55))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .stroke(AppTheme.Colors.overlay, lineWidth: 1)
-            )
-            .shadow(color: AppTheme.Shadows.button, radius: 18, y: 10)
-            .padding(.horizontal, 36)
+        }
+        .navigationBarHidden(true)
+    }
+    
+    private func createAccount() {
+        guard isFormValid && !isBusy else { return }
+        
+        isBusy = true
+        errorMessage = nil
+        
+        Task {
+            do {
+                try await contentModel.createAccount(
+                    email: email,
+                    name: fullName.trimmingCharacters(in: .whitespacesAndNewlines),
+                    password: password
+                )
+                
+                await MainActor.run {
+                    contentModel.checkLogin()
+                    isBusy = false
+                }
+            } catch {
+                await MainActor.run {
+                    isBusy = false
+                    errorMessage = error.localizedDescription
+                }
+            }
         }
     }
 }
@@ -193,22 +327,26 @@ extension View {
         self
             .autocorrectionDisabled()
             .textInputAutocapitalization(.never)
-            .padding(.horizontal, 18)
+            .font(.system(size: 16))
+            .padding(.horizontal, 16)
             .frame(height: 52)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(AppTheme.Colors.textPrimary.opacity(0.05))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(AppTheme.Colors.overlay, lineWidth: 1)
-                    )
+                    .fill(AppTheme.Colors.cardBackground)
+                    .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
             )
-            .foregroundStyle(AppTheme.Colors.textPrimary)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(AppTheme.Colors.overlay.opacity(0.2), lineWidth: 1)
+            )
+            .foregroundColor(AppTheme.Colors.textPrimary)
     }
 }
 
 // PREVIEW ------------------------------------------------------------
 #Preview {
-    CreateAccView(email: "alex@example.com")
-        .environment(ContentModel())
+    NavigationStack {
+        CreateAccView(email: "alex@example.com")
+            .environment(ContentModel())
+    }
 }

@@ -18,6 +18,8 @@ struct ExtraCommitmentsView: View {
     @State private var showDeleteAlert = false
     @State private var commitmentToDelete: RecurringCommitment?
     
+    @Binding var selectedTab: Int
+    
     var body: some View {
         NavigationView {
             ZStack {
@@ -32,6 +34,10 @@ struct ExtraCommitmentsView: View {
                     } else {
                         commitmentListView
                     }
+                    
+                    Spacer()
+                    
+                    TabBarView(selectedTab: $selectedTab)
                 }
             }
             .navigationBarHidden(true)
@@ -866,9 +872,4 @@ private struct CommitmentColorPickerSheet: View {
             }
         }
     }
-}
-
-#Preview {
-    ExtraCommitmentsView()
-        .environment(ContentModel())
 }

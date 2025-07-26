@@ -69,6 +69,9 @@ struct AccountView: View {
                         // Account Actions
                         actionsSection
                         
+                        // Debug section - always show for testing
+                        debugSection
+                        
                         Spacer(minLength: 100) // Space for tab bar
                     }
                     .padding(.horizontal, 24)
@@ -418,6 +421,72 @@ private extension AccountView {
                 accentColor: .red
             ) {
                 showDeleteAccountConfirmation = true
+            }
+        }
+    }
+}
+
+// MARK: - Debug Section
+private extension AccountView {
+    
+    var debugSection: some View {
+        SettingsSection(title: "Debug & Testing") {
+            SettingsRow(
+                icon: "ladybug",
+                title: "Test All Notifications",
+                subtitle: "Send test notifications immediately",
+                showChevron: false,
+                accentColor: .orange
+            ) {
+                Task {
+                    await notificationManager.testAllNotifications()
+                }
+            }
+            
+            SettingsRow(
+                icon: "timer",
+                title: "Test Event Reminder",
+                subtitle: "Schedule a test reminder in 30 seconds",
+                showChevron: false,
+                accentColor: .blue
+            ) {
+                Task {
+                    await notificationManager.testEventReminder()
+                }
+            }
+            
+            SettingsRow(
+                icon: "list.bullet",
+                title: "Check Pending Notifications",
+                subtitle: "View all scheduled notifications",
+                showChevron: false,
+                accentColor: .green
+            ) {
+                Task {
+                    await notificationManager.checkPendingNotifications()
+                }
+            }
+            
+            SettingsRow(
+                icon: "gear",
+                title: "Check Notification Settings",
+                subtitle: "View system notification permissions",
+                showChevron: false,
+                accentColor: .purple
+            ) {
+                Task {
+                    await notificationManager.checkNotificationSettings()
+                }
+            }
+            
+            SettingsRow(
+                icon: "trash",
+                title: "Clear All Notifications",
+                subtitle: "Remove all pending notifications",
+                showChevron: false,
+                accentColor: .red
+            ) {
+                notificationManager.clearAllTestNotifications()
             }
         }
     }

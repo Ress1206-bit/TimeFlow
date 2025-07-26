@@ -10,6 +10,10 @@
 		6B5A29572E2FF91B00900274 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B5A29562E2FF91A00900274 /* ChatViewModel.swift */; };
 		6B5A295A2E3016F800900274 /* BackgroundTaskManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B5A29592E3016F700900274 /* BackgroundTaskManager.swift */; };
 		6B5A295D2E30AD8D00900274 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B5A295C2E30AD8A00900274 /* NotificationManager.swift */; };
+		6B5A295F2E318B5600900274 /* FocusModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B5A295E2E318B5500900274 /* FocusModeView.swift */; };
+		6B5A29612E318B8600900274 /* PieSliceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B5A29602E318B8300900274 /* PieSliceView.swift */; };
+		6B5A29692E33D07F00900274 /* EditScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B5A29682E33D04F00900274 /* EditScheduleView.swift */; };
+		6B5A296B2E33E7F300900274 /* AssignmentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B5A296A2E33E7F000900274 /* AssignmentsView.swift */; };
 		6B63AC572DEBAA710002FFEC /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 6B63AC562DEBAA710002FFEC /* FirebaseCore */; };
 		6B63AC592DEBAA710002FFEC /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = 6B63AC582DEBAA710002FFEC /* FirebaseFunctions */; };
 		6B76A34E2E2085AE0023A7F4 /* Onboarding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B76A34D2E2085A90023A7F4 /* Onboarding.swift */; };
@@ -64,6 +68,10 @@
 		6B5A29582E3015BB00900274 /* TimeFlow.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TimeFlow.entitlements; sourceTree = "<group>"; };
 		6B5A29592E3016F700900274 /* BackgroundTaskManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundTaskManager.swift; sourceTree = "<group>"; };
 		6B5A295C2E30AD8A00900274 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
+		6B5A295E2E318B5500900274 /* FocusModeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusModeView.swift; sourceTree = "<group>"; };
+		6B5A29602E318B8300900274 /* PieSliceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PieSliceView.swift; sourceTree = "<group>"; };
+		6B5A29682E33D04F00900274 /* EditScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditScheduleView.swift; sourceTree = "<group>"; };
+		6B5A296A2E33E7F000900274 /* AssignmentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssignmentsView.swift; sourceTree = "<group>"; };
 		6B76A34D2E2085A90023A7F4 /* Onboarding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Onboarding.swift; sourceTree = "<group>"; };
 		6B76A3532E208AD30023A7F4 /* UpcomingWorkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingWorkView.swift; sourceTree = "<group>"; };
 		6B76A35B2E2361BF0023A7F4 /* Utilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utilities.swift; sourceTree = "<group>"; };
@@ -145,6 +153,13 @@
 			path = Notifications;
 			sourceTree = "<group>";
 		};
+		6B5A296C2E34874900900274 /* WidgetView */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = WidgetView;
+			sourceTree = "<group>";
+		};
 		6B7BE02B2DE8F76600E85F7F = {
 			isa = PBXGroup;
 			children = (
@@ -213,6 +228,11 @@
 				6B7BE0502DE9340500E85F7F /* AnalyticsView.swift */,
 				6B7BE0522DE9340E00E85F7F /* AccountView.swift */,
 				6BFF90822E2568A700892567 /* ExtraCommitmentsView.swift */,
+				6B5A29682E33D04F00900274 /* EditScheduleView.swift */,
+				6B5A296A2E33E7F000900274 /* AssignmentsView.swift */,
+				6B5A295E2E318B5500900274 /* FocusModeView.swift */,
+				6B5A29602E318B8300900274 /* PieSliceView.swift */,
+				6B5A296C2E34874900900274 /* WidgetView */,
 			);
 			path = View;
 			sourceTree = "<group>";
@@ -385,6 +405,7 @@
 			files = (
 				6B7BE04D2DE933E700E85F7F /* ChatView.swift in Sources */,
 				6BCCA69F2E11A219007AFA9B /* WorkHoursView.swift in Sources */,
+				6B5A29612E318B8600900274 /* PieSliceView.swift in Sources */,
 				6BACD74B2E12EFA900922CFC /* SubscriptionView.swift in Sources */,
 				6B8E99CB2E04B88A00C2B3DD /* CreateAccView.swift in Sources */,
 				6B7BE04B2DE8FC1500E85F7F /* HomeView.swift in Sources */,
@@ -393,14 +414,17 @@
 				6BCCA6912E0FA07E007AFA9B /* ScheduleTimes.swift in Sources */,
 				6B7BE0562DE934CC00E85F7F /* TabBarView.swift in Sources */,
 				6B97E6582DFA372B00E1C89D /* LoginView.swift in Sources */,
+				6B5A296B2E33E7F300900274 /* AssignmentsView.swift in Sources */,
 				6BCCA68C2E0F2DF2007AFA9B /* User.swift in Sources */,
 				6BCCA6852E0CC5E7007AFA9B /* ChatPlaygroundView.swift in Sources */,
+				6B5A29692E33D07F00900274 /* EditScheduleView.swift in Sources */,
 				6B967A4E2E2C565D00FEF415 /* AppTheme.swift in Sources */,
 				6B97E65C2DFE524B00E1C89D /* SignInLandingView.swift in Sources */,
 				6B97E6552DFA35DD00E1C89D /* LaunchView.swift in Sources */,
 				6B7BE03A2DE8F76600E85F7F /* ContentView.swift in Sources */,
 				6BB338102E11B7D60012AE68 /* RecurringActivityView.swift in Sources */,
 				6BCCA69B2E10A93A007AFA9B /* SchoolHoursView.swift in Sources */,
+				6B5A295F2E318B5600900274 /* FocusModeView.swift in Sources */,
 				6B76A34E2E2085AE0023A7F4 /* Onboarding.swift in Sources */,
 				6B97E6652E00DAA600E1C89D /* EmailEntryView.swift in Sources */,
 				6BCCA68A2E0EFEEB007AFA9B /* InitialView.swift in Sources */,

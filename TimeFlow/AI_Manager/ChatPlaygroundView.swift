@@ -160,24 +160,90 @@ func userInfoToSchedule(
             let end    = dateFromHHMM(endS)
         else { return nil }
 
-        let idStr = dict["id"] as? String
-        let uuid  = idStr.flatMap(UUID.init(uuidString:)) ?? UUID()
+        let idStr = dict["id"] as? String ?? title
+        let uuid = UUID(uuidString: idStr) ?? UUID()
+        
+        // Determine event type, color, and icon based on ID
+        let (eventType, colorName, icon) = determineEventType(id: idStr, user: user)
 
         return Event(id: uuid,
                      start: start,
                      end: end,
                      title: title,
-                     eventType: .other)   // you’ll map this later
+                     icon: icon ?? "circle",
+                     eventType: eventType,
+                     colorName: colorName)
     }
     
     return events
 }
 
+// MARK: - Event Type Determination
+private func determineEventType(id: String, user: User) -> (EventType, String?, String?) {
+    // If it's a UUID, search through user data
+    if let uuid = UUID(uuidString: id) {
+        // Check goals
+        if let goal = user.goals.first(where: { $0.id == uuid }) {
+            return (.goal, goal.colorName, goal.icon)
+        }
+        
+        // Check recurring commitments
+        if let commitment = user.recurringCommitments.first(where: { $0.id == uuid }) {
+            return (.recurringCommitment, commitment.colorName, commitment.icon)
+        }
+        
+        // Check assignments
+        if user.assignments.contains(where: { $0.id == uuid }) {
+            return (.assignment, "red", "doc.text.fill") // Default assignment color and icon
+        }
+        
+        // Check tests
+        if user.tests.contains(where: { $0.id == uuid }) {
+            return (.testStudy, "yellow", "graduationcap.fill") // Default test color and icon
+        }
+        
+        // Check college courses
+        if let course = user.collegeCourses.first(where: { $0.id == uuid }) {
+            return (.collegeClass, course.colorName, "book.fill") // Default college class icon
+        }
+        
+        // Check work hours (for young professionals)
+        if user.workHours.contains(where: { $0.id == uuid }) {
+            return (.work, "orange", "briefcase.fill") // Default work color and icon
+        }
+        
+        // If UUID not found in any data, default to other
+        return (.other, "gray", "questionmark.circle")
+    }
+    
+    // If it's not a UUID, check for specific meal strings and other categories
+    let lowercaseId = id.lowercased()
+    
+    if lowercaseId == "breakfast" || lowercaseId == "lunch" || lowercaseId == "dinner" {
+        let mealIcon: String
+        switch lowercaseId {
+        case "breakfast": mealIcon = "cup.and.saucer.fill"
+        case "lunch": mealIcon = "fork.knife"
+        case "dinner": mealIcon = "takeoutbag.and.cup.and.straw.fill"
+        default: mealIcon = "fork.knife"
+        }
+        return (.meal, "purple", mealIcon)
+    }
+    
+    if lowercaseId == "school" {
+        return (.school, "teal", "building.2.fill") // Default school color and icon
+    }
+    
+    if lowercaseId.contains("work") {
+        return (.work, "orange", "briefcase.fill")
+    }
+    
+    // Default to other for everything else
+    return (.other, "gray", nil)
+}
+
 // MARK: - Errors
 private enum ScheduleError: Error { case invalidJSON }
-
-
-
 
 func generateSchoolStudentSchedulePrompt(
     user: User,
@@ -233,7 +299,7 @@ func generateSchoolStudentSchedulePrompt(
             let completedCount = goal.daysCompletedThisWeek.count
             let daysStr = goal.daysCompletedThisWeek.isEmpty ? "none" : goal.daysCompletedThisWeek.map { $0.rawValue }.joined(separator: ", ")
             let extraStr = goal.extraPreferenceInfo.isEmpty ? "" : " Extra preferences: \(goal.extraPreferenceInfo)."
-
+            
             return "\(activityTitle) - The user wants to complete this activity \(effectiveCount) times per week and has already completed it \(completedCount) times this week on \(daysStr). The activity's duration is \(goal.durationMinutes) minutes. \(extraStr) ID: \(goal.id.uuidString)."
         }
         
@@ -532,65 +598,65 @@ func generateCollegeStudentSchedulePrompt(
 
     let ngTimeSummary: String = {
         // helper: "HH:mm" -> Date today
-        func dateToday(from time: String) -> Date? {
+        func dateToday(_ time: String) -> Date? {
             let comps = time.split(separator: ":").compactMap { Int($0) }
             guard comps.count == 2 else { return nil }
-            var dc = cal.dateComponents([.year, .month, .day], from: now)
+            var dc = cal.dateComponents([.year,.month,.day], from: now)
             dc.hour = comps[0]; dc.minute = comps[1]
             return cal.date(from: dc)
         }
 
         guard
-            let wakeDate = dateToday(from: wakeTime),
-            wakeDate < now                                // nothing to do if prompt before wake‑up
+            let wakeDate = dateToday(wakeTime),
+            wakeDate < now                                // skip if before wake‑up
         else { return "" }
 
         // collect fixed intervals (TODAY’s courses + recurring commitments)
-        var intervals: [(start: Date, end: Date)] = []
+        var intervals: [(Date,Date)] = []
 
         // today’s courses
         for c in todaysCourses {
-            if let s = dateToday(from: c.startTime),
-               let e = dateToday(from: c.endTime),
+            if let s = dateToday(c.startTime),
+               let e = dateToday(c.endTime),
                s < now {
-                intervals.append((start: s, end: min(e, now)))
+                intervals.append((s, min(e,now)))
             }
         }
 
         // today’s recurring commitments
         for rc in user.recurringCommitments {
             let happensToday: Bool = {
-                switch rc.cadence {
-                case .daily: return true
-                case .weekdays: return weekdayEnum != .saturday && weekdayEnum != .sunday
-                case .custom: return rc.customDays.contains(weekdayEnum)
+                switch rc.cadence{
+                case .daily: true
+                case .weekdays: weekdayEnum != .saturday && weekdayEnum != .sunday
+                case .custom: rc.customDays.contains(weekdayEnum)
                 }
             }()
             guard happensToday,
-                  let s = dateToday(from: rc.startTime),
-                  let e = dateToday(from: rc.endTime),
+                  let s = dateToday(rc.startTime),
+                  let e = dateToday(rc.endTime),
                   s < now
             else { continue }
-            intervals.append((start: s, end: min(e, now)))
+            intervals.append((s, min(e,now)))
         }
 
-        // merge overlaps
-        intervals.sort { $0.start < $1.start }
-        var merged: [(Date,Date)] = []
-        for iv in intervals {
-            if let last = merged.last, iv.start <= last.1 {
+        // merge overlapping intervals
+        intervals.sort { $0.0 < $1.0 }
+        var merged: [(Date,Date)]=[]
+        for iv in intervals{
+            if let last = merged.last, iv.0 <= last.1 {
                 merged[merged.count-1].1 = max(last.1, iv.1)
             } else {
                 merged.append(iv)
             }
         }
 
-        // build NGTime gaps (5‑minute buffers)
-        var ng: [(Date,Date)] = []
+        // build NGTime gaps (leave 5‑minute buffers)
+        var ng: [(Date,Date)]=[]
         var cursor = wakeDate
-        for iv in merged {
+        for iv in merged{
             let gapEnd = iv.0.addingTimeInterval(-5*60)
-            if gapEnd > cursor { ng.append((cursor, gapEnd)) }
+            if gapEnd > cursor { ng.append((cursor,gapEnd)) }
             cursor = iv.1.addingTimeInterval(5*60)
         }
         if cursor < now.addingTimeInterval(-5*60) {
@@ -601,7 +667,7 @@ func generateCollegeStudentSchedulePrompt(
         let fmt = DateFormatter(); fmt.dateFormat = "HH:mm"
         return ng.enumerated().map { idx, block in
             "– NGTime \(fmt.string(from:block.0))-\(fmt.string(from:block.1)) (ID: NGTime-\(idx))"
-        }.joined(separator: "\n")
+        }.joined(separator:"\n")
     }()
     
     // MARK: — Prompt

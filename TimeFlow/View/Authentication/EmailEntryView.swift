@@ -11,110 +11,216 @@ import FirebaseAuth
 struct EmailEntryView: View {
     
     @Environment(ContentModel.self) private var contentModel
+    @Environment(\.dismiss) private var dismiss
     
     @State private var goCreateAccount = false
     @State private var goSignIn = false
     
-
-    @State private var email     = ""
-    @State private var busy      = false
-    @State private var nextMsg   = ""
-    @State private var errorMsg  : String?
+    @State private var email = ""
+    @State private var busy = false
+    @State private var errorMsg: String?
 
     private var emailIsValid: Bool {
-        // ultra-basic regex
         email.range(of: #"^\S+@\S+\.\S+$"#, options: .regularExpression) != nil
     }
 
     var body: some View {
         ZStack {
-            // full-screen backdrop
+            // Modern background gradient
             LinearGradient(
-                    colors: [Color(#colorLiteral(red: 0.3971439004, green: 0.1718953252, blue: 1, alpha: 1)),   // deep indigo
-                             Color(#colorLiteral(red: 0.8545649648, green: 0.5632926822, blue: 1, alpha: 1)),
-                             Color(#colorLiteral(red: 0.3432879448, green: 0.35139364, blue: 1, alpha: 1))],
-                    startPoint: .topLeading, endPoint: .bottomTrailing)
-                .ignoresSafeArea()
+                colors: [
+                    AppTheme.Colors.background,
+                    AppTheme.Colors.accent.opacity(0.1),
+                    AppTheme.Colors.secondary.opacity(0.2),
+                    AppTheme.Colors.background
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
 
-            // glass card
-            VStack(spacing: 28) {
-                Text("Enter Your Email")
-                    .font(.system(size: 30))
-                    .fontWeight(.medium)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity, alignment: .center)
-
-                TextField("", text: $email, prompt: Text("Email").foregroundStyle(.white))
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.emailAddress)
-                    .padding(.horizontal, 18)
-                    .frame(height: 52)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(.white.opacity(0.05))
-                            .overlay(RoundedRectangle(cornerRadius: 12)
-                                .stroke(.white.opacity(0.45), lineWidth: 1))
-                    )
-                    .foregroundStyle(.white)
-
-                Button {
-                    Task {
-                        contentModel.checkIfEmailExists(email: email) { exists, error in
-                                if let error = error {
-                                    print("Error checking email: \(error.localizedDescription)")
-                                    return
+            VStack(spacing: 0) {
+                // Header
+                VStack(spacing: 16) {
+                    // Handle bar
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(AppTheme.Colors.overlay.opacity(0.3))
+                        .frame(width: 36, height: 5)
+                        .padding(.top, 8)
+                    
+                    HStack {
+                        Button("Cancel") {
+                            dismiss()
+                        }
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(AppTheme.Colors.textSecondary)
+                        
+                        Spacer()
+                    }
+                    .padding(.horizontal, 24)
+                }
+                .padding(.bottom, 32)
+                
+                // Main content
+                VStack(spacing: 32) {
+                    // Header section
+                    VStack(spacing: 16) {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        AppTheme.Colors.accent,
+                                        AppTheme.Colors.accent.opacity(0.8)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 64, height: 64)
+                            .overlay(
+                                Image(systemName: "envelope")
+                                    .font(.system(size: 28, weight: .medium))
+                                    .foregroundColor(.white)
+                            )
+                            .shadow(color: AppTheme.Colors.accent.opacity(0.3), radius: 12, y: 4)
+                        
+                        VStack(spacing: 8) {
+                            Text("Enter Your Email")
+                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .foregroundColor(AppTheme.Colors.textPrimary)
+                            
+                            Text("We'll check if you have an account or help you create one")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(AppTheme.Colors.textSecondary)
+                                .multilineTextAlignment(.center)
+                                .lineSpacing(2)
+                        }
+                    }
+                    
+                    // Email input
+                    VStack(spacing: 20) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            TextField("your@email.com", text: $email)
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                                .keyboardType(.emailAddress)
+                                .font(.system(size: 16))
+                                .padding(.horizontal, 16)
+                                .frame(height: 52)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(AppTheme.Colors.cardBackground)
+                                        .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(
+                                            emailIsValid ? AppTheme.Colors.accent.opacity(0.5) : 
+                                            AppTheme.Colors.overlay.opacity(0.2),
+                                            lineWidth: 1
+                                        )
+                                )
+                                .foregroundColor(AppTheme.Colors.textPrimary)
+                            
+                            if let errorMsg = errorMsg {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "exclamationmark.circle.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.red)
+                                    
+                                    Text(errorMsg)
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.red)
                                 }
-                                if exists {
-                                    goSignIn = true
-                                    print("Email is already registered.")
-                                    // Show error to user (e.g., "This email is already in use.")
-                                } else {
-                                    goCreateAccount = true
-                                    print("Email is available for registration.")
-                                    // Proceed with sign-up
+                                .padding(.horizontal, 4)
+                            }
+                        }
+                        
+                        // Continue button
+                        Button {
+                            guard emailIsValid else {
+                                errorMsg = "Please enter a valid email address"
+                                return
+                            }
+                            
+                            errorMsg = nil
+                            busy = true
+                            
+                            contentModel.checkIfEmailExists(email: email) { exists, error in
+                                DispatchQueue.main.async {
+                                    busy = false
+                                    
+                                    if let error = error {
+                                        errorMsg = "Something went wrong. Please try again."
+                                        return
+                                    }
+                                    
+                                    if exists {
+                                        goSignIn = true
+                                    } else {
+                                        goCreateAccount = true
+                                    }
                                 }
                             }
+                        } label: {
+                            HStack(spacing: 8) {
+                                if busy {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                        .tint(.white)
+                                } else {
+                                    Text("Continue")
+                                        .font(.system(size: 16, weight: .semibold))
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(
+                                        emailIsValid && !busy ? 
+                                        LinearGradient(
+                                            colors: [AppTheme.Colors.accent, AppTheme.Colors.accent.opacity(0.8)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ) :
+                                        LinearGradient(
+                                            colors: [AppTheme.Colors.textTertiary.opacity(0.5), AppTheme.Colors.textTertiary.opacity(0.3)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .shadow(
+                                        color: emailIsValid && !busy ? AppTheme.Colors.accent.opacity(0.3) : .clear,
+                                        radius: 8,
+                                        y: 4
+                                    )
+                            )
+                            .foregroundColor(.white)
+                        }
+                        .disabled(!emailIsValid || busy)
+                        .animation(.easeInOut(duration: 0.2), value: emailIsValid)
+                        .animation(.easeInOut(duration: 0.2), value: busy)
                     }
-                } label: {
-                    Text("Continue")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity, minHeight: 52)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(#colorLiteral(red: 0.4427401125, green: 0.4285973907, blue: 0.9061256051, alpha: 1)))
-                                .shadow(color: .white.opacity(0.2), radius: 18, y: 10)
-                        )
                 }
-                .foregroundStyle(.white)
-                .buttonStyle(.plain)
-                //.disabled(!emailIsValid)
+                .padding(.horizontal, 32)
+                
+                Spacer()
             }
-            .padding(32)
-            .background(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .opacity(0.55)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .stroke(.white.opacity(0.42), lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.30), radius: 18, y: 10)
-            .padding(.horizontal, 36)
         }
-        .presentationBackground(.ultraThinMaterial)
-        .interactiveDismissDisabled(busy)
         .navigationDestination(isPresented: $goCreateAccount) {
             CreateAccView(email: email)
         }
         .navigationDestination(isPresented: $goSignIn) {
             SignInView(email: email)
         }
+        .interactiveDismissDisabled(busy)
     }
 }
 
 #Preview {
-    EmailEntryView()
-        .environment(ContentModel())
+    NavigationStack {
+        EmailEntryView()
+            .environment(ContentModel())
+    }
 }
