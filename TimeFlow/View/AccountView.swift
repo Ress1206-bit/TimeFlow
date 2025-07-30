@@ -69,9 +69,6 @@ struct AccountView: View {
                         // Account Actions
                         actionsSection
                         
-                        // Debug section - always show for testing
-                        debugSection
-                        
                         Spacer(minLength: 100) // Space for tab bar
                     }
                     .padding(.horizontal, 24)
@@ -255,12 +252,12 @@ private extension AccountView {
                     .frame(width: 24, height: 24)
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Auto-Generate Schedule")
+                    Text("Smart Schedule Generation")
                         .font(.body.weight(.medium))
                         .foregroundColor(AppTheme.Colors.textPrimary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     
-                    Text("Creates your daily schedule automatically at wake-up time")
+                    Text("Morning notification + automatic schedule when possible")
                         .font(.caption)
                         .foregroundColor(AppTheme.Colors.textTertiary)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -338,8 +335,10 @@ private extension AccountView {
         case .denied:
             return "Disabled in system settings"
         case .authorized:
-            let enabledCount = NotificationManager.NotificationType.allCases.filter { notificationManager.isEnabled($0) }.count
-            return "\(enabledCount) of \(NotificationManager.NotificationType.allCases.count) enabled"
+            let morningEnabled = notificationManager.isMorningNotificationEnabled()
+            let eveningEnabled = notificationManager.isEveningNotificationEnabled()
+            let enabledCount = (morningEnabled ? 1 : 0) + (eveningEnabled ? 1 : 0)
+            return "\(enabledCount) of 2 enabled"
         case .notDetermined:
             return "Not configured"
         case .provisional:
@@ -426,78 +425,13 @@ private extension AccountView {
     }
 }
 
-// MARK: - Debug Section
-private extension AccountView {
-    
-    var debugSection: some View {
-        SettingsSection(title: "Debug & Testing") {
-            SettingsRow(
-                icon: "ladybug",
-                title: "Test All Notifications",
-                subtitle: "Send test notifications immediately",
-                showChevron: false,
-                accentColor: .orange
-            ) {
-                Task {
-                    await notificationManager.testAllNotifications()
-                }
-            }
-            
-            SettingsRow(
-                icon: "timer",
-                title: "Test Event Reminder",
-                subtitle: "Schedule a test reminder in 30 seconds",
-                showChevron: false,
-                accentColor: .blue
-            ) {
-                Task {
-                    await notificationManager.testEventReminder()
-                }
-            }
-            
-            SettingsRow(
-                icon: "list.bullet",
-                title: "Check Pending Notifications",
-                subtitle: "View all scheduled notifications",
-                showChevron: false,
-                accentColor: .green
-            ) {
-                Task {
-                    await notificationManager.checkPendingNotifications()
-                }
-            }
-            
-            SettingsRow(
-                icon: "gear",
-                title: "Check Notification Settings",
-                subtitle: "View system notification permissions",
-                showChevron: false,
-                accentColor: .purple
-            ) {
-                Task {
-                    await notificationManager.checkNotificationSettings()
-                }
-            }
-            
-            SettingsRow(
-                icon: "trash",
-                title: "Clear All Notifications",
-                subtitle: "Remove all pending notifications",
-                showChevron: false,
-                accentColor: .red
-            ) {
-                notificationManager.clearAllTestNotifications()
-            }
-        }
-    }
-}
-
 // MARK: - Helper Methods
 private extension AccountView {
     
     func signOut() {
         do {
             try contentModel.signOut()
+            // Additional cleanup logic might be required here, e.g., clearing local storage, cache, etc.
         } catch {
             print("Error signing out: \(error.localizedDescription)")
         }
@@ -505,7 +439,17 @@ private extension AccountView {
     
     func deleteAccount() {
         // Implement account deletion logic
-        print("Delete account requested")
+        // Ensure to handle errors appropriately and provide feedback to the user
+        Task {
+            do {
+                try await contentModel.deleteUserAccount()
+                print("Account deleted successfully")
+                // Additional cleanup or navigation logic might be required here
+            } catch {
+                print("Error deleting account: \(error.localizedDescription)")
+                // Handle error, potentially display an alert to the user
+            }
+        }
     }
 }
 
@@ -936,10 +880,12 @@ private struct AwakeHoursConfigSheet: View {
         // Update the user model
         contentModel.user?.awakeHours = awakeHours
         
-        // Save to Firestore
+        // Save to Firestore and reschedule notifications
         Task {
             do {
                 try await contentModel.saveUserInfo()
+                // Reschedule notifications with new wake/sleep times
+                await contentModel.updateNotificationSettings()
                 await MainActor.run {
                     isSaving = false
                     dismiss()
@@ -1251,7 +1197,6 @@ private struct SchoolLevelViewSettings: View {
                         .foregroundColor(.white)
                     Text("We'll tailor the planner around your day-to-day reality.")
                         .font(.subheadline)
-                        .multilineTextAlignment(.center)
                         .foregroundColor(.white.opacity(0.9))
                         .padding(.horizontal)
                 }
@@ -1349,11 +1294,9 @@ private struct SchoolHoursViewSettings: View {
                 VStack(spacing: 12) {
                     Text("When are you in school?")
                         .font(.title3.bold())
-                        .multilineTextAlignment(.center)
                         .foregroundColor(.white)
                     Text("We'll protect these hours Monday–Friday")
                         .font(.body)
-                        .multilineTextAlignment(.center)
                         .foregroundColor(.secondary)
                         .padding(.horizontal, 24)
                 }
@@ -1396,17 +1339,12 @@ private struct SchoolHoursViewSettings: View {
                     }
                 } label: {
                     Text("Save")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background((validRange && !isSaving) ? AppTheme.Colors.primary : Color.gray)
-                        .foregroundColor(.white)
-                        .cornerRadius(16)
-                        .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                        .fontWeight(.semibold)
                 }
-                .disabled(!validRange || isSaving)
-                .padding(.horizontal, 24)
-                .padding(.bottom, 40)
+                .themeButton(enabled: validRange, color: AppTheme.Colors.primary)
+                .disabled(!validRange)
+                .padding(.horizontal)
+                .padding(.bottom, 22)
             }
         }
         .onAppear {
@@ -1627,7 +1565,6 @@ private struct CollegeScheduleViewSettings: View {
                         .foregroundColor(.white.opacity(0.8))
                 }
                 .multilineTextAlignment(.center)
-                .padding(.horizontal)
                 
                 calendarPanel
                     .padding(.horizontal, 8)
@@ -1851,9 +1788,7 @@ private struct WorkHoursViewSettings: View {
                         .foregroundColor(.white)
                     Text("We'll avoid scheduling personal tasks inside this window.")
                         .font(.subheadline)
-                        .multilineTextAlignment(.center)
                         .foregroundColor(.white.opacity(0.85))
-                        .padding(.horizontal)
                 }
                 
                 ScrollView {
@@ -2004,6 +1939,8 @@ private struct NotificationSettingsSheet: View {
     @StateObject private var notificationManager = NotificationManager.shared
     
     @State private var permissionStatus: UNAuthorizationStatus = .notDetermined
+    @State private var morningEnabled = true
+    @State private var eveningEnabled = true
     
     var body: some View {
         NavigationStack {
@@ -2078,19 +2015,62 @@ private struct NotificationSettingsSheet: View {
                         } else {
                             // Notification types list
                             VStack(spacing: 0) {
-                                ForEach(NotificationManager.NotificationType.allCases, id: \.self) { notificationType in
-                                    NotificationToggleRow(
-                                        type: notificationType,
-                                        isEnabled: notificationManager.isEnabled(notificationType)
-                                    ) { enabled in
-                                        notificationManager.setEnabled(notificationType, enabled: enabled)
+                                // Morning Notification
+                                HStack(spacing: 16) {
+                                    Image(systemName: "sun.max.fill")
+                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundColor(.orange)
+                                        .frame(width: 24, height: 24)
+                                    
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Morning Schedule")
+                                            .font(.body.weight(.medium))
+                                            .foregroundColor(AppTheme.Colors.textPrimary)
+                                        
+                                        Text("Get notified when you wake up to plan your day")
+                                            .font(.caption)
+                                            .foregroundColor(AppTheme.Colors.textTertiary)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
                                     }
                                     
-                                    if notificationType != NotificationManager.NotificationType.allCases.last {
-                                        Divider()
-                                            .background(AppTheme.Colors.overlay.opacity(0.3))
-                                            .padding(.horizontal, 20)
+                                    Toggle("", isOn: $morningEnabled)
+                                        .toggleStyle(SwitchToggleStyle(tint: AppTheme.Colors.primary))
+                                }
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 16)
+                                .onChange(of: morningEnabled) { _, newValue in
+                                    notificationManager.setMorningNotificationEnabled(newValue)
+                                }
+                                
+                                Divider()
+                                    .background(AppTheme.Colors.overlay.opacity(0.3))
+                                    .padding(.horizontal, 20)
+                                
+                                // Evening Notification
+                                HStack(spacing: 16) {
+                                    Image(systemName: "moon.fill")
+                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundColor(.blue)
+                                        .frame(width: 24, height: 24)
+                                    
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Evening Reminder")
+                                            .font(.body.weight(.medium))
+                                            .foregroundColor(AppTheme.Colors.textPrimary)
+                                        
+                                        Text("Get reminded to wind down before bedtime")
+                                            .font(.caption)
+                                            .foregroundColor(AppTheme.Colors.textTertiary)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
                                     }
+                                    
+                                    Toggle("", isOn: $eveningEnabled)
+                                        .toggleStyle(SwitchToggleStyle(tint: AppTheme.Colors.primary))
+                                }
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 16)
+                                .onChange(of: eveningEnabled) { _, newValue in
+                                    notificationManager.setEveningNotificationEnabled(newValue)
                                 }
                             }
                             .background(
@@ -2119,56 +2099,11 @@ private struct NotificationSettingsSheet: View {
         .onAppear {
             Task {
                 permissionStatus = await notificationManager.checkPermissionStatus()
+                morningEnabled = notificationManager.isMorningNotificationEnabled()
+                eveningEnabled = notificationManager.isEveningNotificationEnabled()
             }
         }
         .preferredColorScheme(.dark)
-    }
-}
-
-private struct NotificationToggleRow: View {
-    let type: NotificationManager.NotificationType
-    let isEnabled: Bool
-    let onToggle: (Bool) -> Void
-    
-    @State private var enabled: Bool
-    
-    init(type: NotificationManager.NotificationType, isEnabled: Bool, onToggle: @escaping (Bool) -> Void) {
-        self.type = type
-        self.isEnabled = isEnabled
-        self.onToggle = onToggle
-        self._enabled = State(initialValue: isEnabled)
-    }
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            // Icon
-            Image(systemName: type.icon)
-                .font(.system(size: 18, weight: .medium))
-                .foregroundColor(AppTheme.Colors.primary)
-                .frame(width: 24, height: 24)
-            
-            // Content
-            VStack(alignment: .leading, spacing: 2) {
-                Text(type.displayName)
-                    .font(.body.weight(.medium))
-                    .foregroundColor(AppTheme.Colors.textPrimary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                
-                Text(type.description)
-                    .font(.caption)
-                    .foregroundColor(AppTheme.Colors.textTertiary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            
-            Toggle("", isOn: $enabled)
-                .toggleStyle(SwitchToggleStyle(tint: AppTheme.Colors.primary))
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
-        .contentShape(Rectangle())
-        .onChange(of: enabled) { _, newValue in
-            onToggle(newValue)
-        }
     }
 }
 

@@ -10,10 +10,13 @@ import SwiftUI
 struct ContentView: View {
     
     @StateObject private var chatVM = ChatViewModel()
-    
+    @Environment(ContentModel.self) private var contentModel
     
     @State private var selectedTab = 0
     
+    private var isYoungProfessional: Bool {
+        contentModel.user?.ageGroup == .youngProfessional
+    }
     
     var body: some View {
         if selectedTab == 0 {
@@ -27,14 +30,27 @@ struct ContentView: View {
             
         } else if selectedTab == 2 {
             
-            AssignmentsView(selectedTabPage: $selectedTab)
+            if isYoungProfessional {
+                // Young professionals: tab 2 = commitments
+                ExtraCommitmentsView(selectedTab: $selectedTab)
+            } else {
+                // Students: tab 2 = assignments
+                AssignmentsView(selectedTabPage: $selectedTab)
+            }
             
         } else if selectedTab == 3 {
             
-            ExtraCommitmentsView(selectedTab: $selectedTab)
+            if isYoungProfessional {
+                // Young professionals: tab 3 = analytics
+                AnalyticsView(selectedTab: $selectedTab)
+            } else {
+                // Students: tab 3 = commitments
+                ExtraCommitmentsView(selectedTab: $selectedTab)
+            }
             
         } else if selectedTab == 4 {
             
+            // Only students have tab 4 (analytics)
             AnalyticsView(selectedTab: $selectedTab)
             
         }
@@ -43,4 +59,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+        .environment(ContentModel())
 }

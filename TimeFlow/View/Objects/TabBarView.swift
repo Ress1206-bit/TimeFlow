@@ -10,14 +10,30 @@ import SwiftUI
 struct TabBarView: View {
     
     @Binding var selectedTab: Int
+    @Environment(ContentModel.self) private var contentModel
     
-    private let tabItems = [
-        TabItem(icon: "house.fill", title: "Home", tag: 0),
-        TabItem(icon: "target", title: "Goals", tag: 1),
-        TabItem(icon: "doc.text.fill", title: "Assignments", tag: 2),
-        TabItem(icon: "calendar.badge.clock", title: "Commitments", tag: 3),
-        TabItem(icon: "chart.bar.fill", title: "Analytics", tag: 4),
-    ]
+    private var isYoungProfessional: Bool {
+        contentModel.user?.ageGroup == .youngProfessional
+    }
+    
+    private var tabItems: [TabItem] {
+        if isYoungProfessional {
+            return [
+                TabItem(icon: "house.fill", title: "Home", tag: 0),
+                TabItem(icon: "target", title: "Goals", tag: 1),
+                TabItem(icon: "calendar.badge.clock", title: "Commitments", tag: 2),
+                TabItem(icon: "chart.bar.fill", title: "Analytics", tag: 3),
+            ]
+        } else {
+            return [
+                TabItem(icon: "house.fill", title: "Home", tag: 0),
+                TabItem(icon: "target", title: "Goals", tag: 1),
+                TabItem(icon: "doc.text.fill", title: "Assignments", tag: 2),
+                TabItem(icon: "calendar.badge.clock", title: "Commitments", tag: 3),
+                TabItem(icon: "chart.bar.fill", title: "Analytics", tag: 4),
+            ]
+        }
+    }
     
     var body: some View {
         // Single container that extends to bottom
@@ -37,8 +53,8 @@ struct TabBarView: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 8)
+            .padding(.top, 12)
+            .padding(.bottom, 6)
         }
         .background(
             .ultraThinMaterial

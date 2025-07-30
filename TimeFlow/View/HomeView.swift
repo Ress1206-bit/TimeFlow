@@ -46,68 +46,68 @@ struct HomeView: View {
                 VStack(spacing: 0) {
                     headerView
                     
-                    if visibleEvents.isEmpty {
-                        emptyStateView
-                    } else {
-                        if showCalendarView {
-                            calendarView
+                    Group {
+                        if visibleEvents.isEmpty {
+                            emptyStateView
                         } else {
-                            timelineScheduleView
+                            if showCalendarView {
+                                calendarView
+                            } else {
+                                timelineScheduleView
+                            }
                         }
                     }
+                    .opacity(showingThinkingOverlay ? 0 : 1)
+                    .animation(.easeInOut(duration: 0.3), value: showingThinkingOverlay)
                 }
+                .navigationBarHidden(true)
+            }
+            .sheet(isPresented: $showingNoteSheet) {
+                noteInputSheet
+            }
+            .sheet(isPresented: $showingSettings) {
+                AccountView()
+            }
+            .sheet(isPresented: $showingEditSchedule) {
+                EditScheduleView()
+            }
+            .onAppear {
+                loadScheduleData()
+                contentModel.checkForBackgroundGenerationOnStartup()
                 
-                // AI Thinking Overlay
-                if showingThinkingOverlay {
-                    aiThinkingOverlay
-                }
-            }
-            .navigationBarHidden(true)
-        }
-        .sheet(isPresented: $showingNoteSheet) {
-            noteInputSheet
-        }
-        .sheet(isPresented: $showingSettings) {
-            AccountView()
-        }
-        .sheet(isPresented: $showingEditSchedule) {
-            EditScheduleView()
-        }
-        .onAppear {
-            loadScheduleData()
-            contentModel.checkForBackgroundGenerationOnStartup()
-            
-            print(events)
-            
-            if contentModel.loggedIn && contentModel.user == nil {
-                Task {
-                    do {
-                        try await contentModel.fetchUser()
-                        await MainActor.run {
-                            loadScheduleData()
+                print(events)
+                
+                if contentModel.loggedIn && contentModel.user == nil {
+                    Task {
+                        do {
+                            try await contentModel.fetchUser()
+                            await MainActor.run {
+                                loadScheduleData()
+                            }
+                        } catch {
+                            print("❌ Failed to fetch user on appear: \(error)")
                         }
-                    } catch {
-                        print("❌ Failed to fetch user on appear: \(error)")
                     }
-                }
-            } else if contentModel.loggedIn {
-                Task {
-                    do {
-                        try await contentModel.refreshUserData()
-                        await MainActor.run {
-                            loadScheduleData()
+                } else if contentModel.loggedIn {
+                    Task {
+                        do {
+                            try await contentModel.refreshUserData()
+                            await MainActor.run {
+                                loadScheduleData()
+                            }
+                            await contentModel.checkAndOfferScheduleGeneration()
+                        } catch {
+                            print("❌ Failed to refresh user data: \(error)")
                         }
-                    } catch {
-                        print("❌ Failed to refresh user data: \(error)")
                     }
                 }
             }
-        }
-        .onChange(of: contentModel.user?.currentSchedule) { oldSchedule, newSchedule in
-            if let newSchedule = newSchedule {
-                events = newSchedule.isEmpty ? [] : newSchedule
-            } else {
-                events = []
+            .onChange(of: contentModel.user?.currentSchedule) { oldSchedule, newSchedule in
+                if let newSchedule = newSchedule {
+                    events = newSchedule.isEmpty ? [] : newSchedule
+                } else {
+                    events = []
+                }
             }
         }
     }

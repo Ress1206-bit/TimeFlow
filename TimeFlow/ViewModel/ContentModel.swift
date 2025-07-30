@@ -76,13 +76,18 @@ class ContentModel {
                     print("✅ User data fetched successfully")
                     // Reset credits if needed after login
                     checkAndResetCreditsIfNeeded()
+                    // Check if we need to generate today's schedule
+                    await checkAndOfferScheduleGeneration()
                 } catch {
                     print("❌ Failed to fetch user data: \(error)")
                 }
             }
         } else if loggedIn {
-            // User already logged in, just check credits
+            // User already logged in, just check credits and schedule
             checkAndResetCreditsIfNeeded()
+            Task {
+                await checkAndOfferScheduleGeneration()
+            }
         }
     }
     
@@ -152,6 +157,9 @@ class ContentModel {
         if userListener == nil {
             setupUserListener()
         }
+        
+        // Schedule notifications with user's wake/sleep times
+        await scheduleUserNotifications()
     }
     
     func saveUserInfo() async throws {
@@ -527,6 +535,9 @@ class ContentModel {
         if let events = user?.currentSchedule, !events.isEmpty {
             saveScheduleBackup(events: events, isFromFirebase: true)
         }
+        
+        // Re-schedule notifications with updated user data
+        await scheduleUserNotifications()
     }
     
     private func saveScheduleBackup(events: [Event], isFromFirebase: Bool = false) {
@@ -610,7 +621,24 @@ class ContentModel {
         let granted = await NotificationManager.shared.requestPermissions()
         if granted {
             NotificationManager.shared.setupNotificationCategories()
+            
+            // Schedule daily notifications with user's wake/sleep times
+            await scheduleUserNotifications()
         }
+    }
+    
+    func scheduleUserNotifications() async {
+        guard let user = self.user else { return }
+        
+        let wakeTime = user.todaysAwakeHours?.wakeTime ?? user.awakeHours.wakeTime
+        let sleepTime = user.todaysAwakeHours?.sleepTime ?? user.awakeHours.sleepTime
+        
+        await NotificationManager.shared.scheduleDailyNotifications(
+            wakeTime: wakeTime,
+            sleepTime: sleepTime
+        )
+        
+        print("✅ Scheduled daily notifications - Wake: \(wakeTime), Sleep: \(sleepTime)")
     }
 
     func checkForDayCompletion() async {
@@ -621,8 +649,10 @@ class ContentModel {
             event.start > now && !event.title.contains("NGTime")
         }
         
+        // Day completion logic without notification since we simplified notifications
         if remainingEvents.isEmpty && !user.currentSchedule.isEmpty {
-            await NotificationManager.shared.sendDayCompleteNotification()
+            print("🎉 User has completed their daily schedule!")
+            // Could potentially trigger other completion logic here in the future
         }
     }
     
@@ -814,6 +844,102 @@ class ContentModel {
         try await saveCurrentScheduleToFirebase(events: completeSchedule)
         
         return completeSchedule
+    }
+    
+    // MARK: - Notification Settings
+    
+    func updateNotificationSettings() async {
+        // Re-schedule notifications whenever user settings change
+        await scheduleUserNotifications()
+    }
+    
+    // MARK: - Smart Schedule Generation
+    
+    func checkAndOfferScheduleGeneration() async {
+        guard isAutoSchedulingEnabled(), let user = self.user else { return }
+        
+        let wakeTime = user.todaysAwakeHours?.wakeTime ?? user.awakeHours.wakeTime
+        
+        // Check if we already have a schedule for today
+        if !user.currentSchedule.isEmpty {
+            print("✅ Schedule already exists for today")
+            return
+        }
+        
+        // Check if we have a recent background-generated schedule
+        if let completedEvents = checkForCompletedSchedule(), !completedEvents.isEmpty {
+            print("✅ Found background-generated schedule, applying it")
+            self.user?.currentSchedule = completedEvents
+            try? await saveUserInfo()
+            return
+        }
+        
+        // Check if it's close to or past wake-up time and we should auto-generate
+        if shouldAutoGenerateSchedule(wakeTime: wakeTime) {
+            print("🤖 Auto-generating schedule for today")
+            await generateScheduleInBackground()
+        }
+    }
+    
+    private func shouldAutoGenerateSchedule(wakeTime: String) -> Bool {
+        guard let wakeUpToday = today(at: wakeTime) else { return false }
+        
+        let now = Date()
+        let timeSinceWakeUp = now.timeIntervalSince(wakeUpToday)
+        
+        // Auto-generate if:
+        // 1. It's within 2 hours after wake-up time, OR
+        // 2. It's past 9 AM (fallback for late wake-up times)
+        let twoHoursAfterWakeUp = timeSinceWakeUp >= 0 && timeSinceWakeUp <= (2 * 60 * 60)
+        let past9AM = Calendar.current.component(.hour, from: now) >= 9
+        
+        return twoHoursAfterWakeUp || past9AM
+    }
+    
+    private func generateScheduleInBackground() async {
+        guard !isGeneratingSchedule else { return }
+        
+        do {
+            print("🔄 Generating schedule in background...")
+            let events = try await generateScheduleWithBackgroundSupport(userNote: "")
+            print("✅ Background schedule generation completed with \(events.count) events")
+        } catch {
+            print("❌ Background schedule generation failed: \(error)")
+        }
+    }
+    
+    // MARK: - Account Management
+    
+    func deleteUserAccount() async throws {
+        guard let uid = currentUID() else {
+            throw NSError(domain: "ContentModel", code: 401, userInfo: [NSLocalizedDescriptionKey: "Not signed in"])
+        }
+        
+        // Delete user data from Firestore
+        try await db.collection("users").document(uid).delete()
+        
+        // Delete the Firebase Auth account
+        try await Auth.auth().currentUser?.delete()
+        
+        // Clear local data
+        user = nil
+        userHistory = nil
+        loggedIn = false
+        
+        // Clear UserDefaults
+        UserDefaults.standard.removeObject(forKey: "cachedUserData")
+        UserDefaults.standard.removeObject(forKey: "generatedSchedule")
+        UserDefaults.standard.removeObject(forKey: "scheduleGeneratedAt")
+        UserDefaults.standard.removeObject(forKey: "autoScheduleEnabled")
+        UserDefaults.standard.removeObject(forKey: "hasSetAutoSchedule")
+        UserDefaults.standard.removeObject(forKey: "notification_morning_enabled")
+        UserDefaults.standard.removeObject(forKey: "notification_evening_enabled")
+        UserDefaults.standard.removeObject(forKey: "hasSetupNotificationDefaults")
+        
+        // Cancel all notifications
+        NotificationManager.shared.cancelAllNotifications()
+        
+        print("✅ User account deleted successfully")
     }
 }
 

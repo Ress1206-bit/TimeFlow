@@ -69,9 +69,7 @@ struct OnBoardingView: View {
                     impactFeedback.impactOccurred()
                     if user.ageGroup == .youngProfessional {
                         currentStep = .notifications
-                        
-                    }
-                    else {
+                    } else {
                         currentStep = .assignmentsTests
                     }
                 }

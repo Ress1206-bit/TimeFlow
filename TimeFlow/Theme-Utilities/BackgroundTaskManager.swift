@@ -143,11 +143,9 @@ class BackgroundTaskManager: ObservableObject {
                 print("⚠️ Failed to save wake-up schedule to Firebase: \(error)")
             }
             
-            // Send wake-up notification using NotificationManager
-            await NotificationManager.shared.sendWakeUpScheduleNotification(eventCount: events.count)
-            
-            // Schedule event reminders for today's events
-            await NotificationManager.shared.scheduleAllEventReminders(for: events)
+            // The morning notification is handled by the scheduled daily notification system
+            // We don't need to send it manually here since it's already scheduled
+            print("✅ Wake-up schedule generated with \(events.count) events")
             
         } catch {
             print("Failed to generate wake-up schedule: \(error)")
@@ -200,8 +198,8 @@ class BackgroundTaskManager: ObservableObject {
             print("⚠️ Failed to save background schedule to Firebase: \(error)")
         }
         
-        // Send manual generation notification using NotificationManager
-        await NotificationManager.shared.sendManualGenerationNotification(eventCount: events.count)
+        // Just log the completion since we simplified notifications
+        print("✅ Background schedule generated with \(events.count) events")
     }
     
     private func saveScheduleToFirebase(events: [Event]) async throws {

@@ -120,7 +120,7 @@ private extension AnalyticsView {
     }
     
     private var headerSubtitle: String {
-        let dayCount = recentDailyLogs.count
+        let dayCount = effectiveDailyLogs.count
         if dayCount == 0 {
             return "No data available"
         } else if dayCount == 1 {
@@ -166,9 +166,7 @@ private extension AnalyticsView {
             keyMetricsGrid
             
             // Activity breakdown chart
-            if !recentDailyLogs.isEmpty {
-                activityBreakdownChart
-            }
+            activityBreakdownChart
             
             // Recent trends
             recentTrendsSection
@@ -549,7 +547,7 @@ private extension AnalyticsView {
     
     var productivitySection: some View {
         VStack(spacing: 24) {
-            if !recentDailyLogs.isEmpty {
+            if !effectiveDailyLogs.isEmpty {
                 productivityOverTime
                 focusTimeAnalysis
                 workLifeBalance
@@ -727,12 +725,520 @@ private extension AnalyticsView {
     }
 }
 
+private extension AnalyticsView {
+    
+    private var isYoungProfessional: Bool {
+        contentModel.user?.ageGroup == .youngProfessional
+    }
+    
+    // Filter out assignment and test events for young professionals
+    private var filteredDailyLogs: [DailyInfo] {
+        if isYoungProfessional {
+            return recentDailyLogs.map { log in
+                let filteredEvents = log.events.filter { event in
+                    event.eventType != .assignment && event.eventType != .testStudy
+                }
+                return DailyInfo(date: log.date, events: filteredEvents, awakeHours: log.awakeHours)
+            }
+        } else {
+            return recentDailyLogs
+        }
+    }
+    
+    // Override recentDailyLogs to use filteredDailyLogs for young professionals
+    private var effectiveDailyLogs: [DailyInfo] {
+        isYoungProfessional ? filteredDailyLogs : recentDailyLogs
+    }
+    
+    // Overview analytics
+    var totalEventsCount: Int {
+        effectiveDailyLogs.reduce(0) { $0 + $1.events.count }
+    }
+    
+    var averageEventsPerDay: Double {
+        guard !effectiveDailyLogs.isEmpty else { return 0 }
+        return Double(totalEventsCount) / Double(effectiveDailyLogs.count)
+    }
+    
+    var mostProductiveDay: String {
+        let dayEventCounts = Dictionary(grouping: effectiveDailyLogs) {
+            Calendar.current.component(.weekday, from: $0.date)
+        }.mapValues { logs in
+            logs.reduce(0) { $0 + $1.events.count }
+        }
+        
+        let mostProductiveDayNumber = dayEventCounts.max { $0.value < $1.value }?.key ?? 1
+        let dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        return dayNames[(mostProductiveDayNumber - 1) % 7]
+    }
+    
+    var scheduleScore: Double {
+        guard !effectiveDailyLogs.isEmpty else { return 0 }
+        
+        let totalMinutes = effectiveDailyLogs.reduce(0.0) { total, log in
+            let eventDuration = log.events.reduce(0.0) { sum, event in
+                sum + event.end.timeIntervalSince(event.start) / 60
+            }
+            return total + eventDuration
+        }
+        
+        let availableMinutes = Double(effectiveDailyLogs.count) * (16 * 60) // Assume 16 productive hours per day
+        return min(1.0, totalMinutes / availableMinutes)
+    }
+    
+    var activityBreakdownData: [ActivityBreakdownData] {
+        let eventCounts = Dictionary(grouping: effectiveDailyLogs.flatMap { $0.events }) { $0.eventType }
+            .mapValues { $0.count }
+        
+        return eventCounts.map { type, count in
+            ActivityBreakdownData(
+                type: type,
+                count: count,
+                color: colorForEventType(type)
+            )
+        }.sorted { $0.count > $1.count }
+    }
+    
+    var dailyActivityTrend: TrendDirection {
+        guard effectiveDailyLogs.count >= 3 else { return .stable }
+        
+        let recent = effectiveDailyLogs.suffix(3).map { $0.events.count }
+        let earlier = effectiveDailyLogs.prefix(max(1, effectiveDailyLogs.count - 3)).map { $0.events.count }
+        
+        let recentAvg = Double(recent.reduce(0, +)) / Double(recent.count)
+        let earlierAvg = Double(earlier.reduce(0, +)) / Double(max(1, earlier.count))
+        
+        if recentAvg > earlierAvg * 1.1 {
+            return .up
+        } else if recentAvg < earlierAvg * 0.9 {
+            return .down
+        } else {
+            return .stable
+        }
+    }
+    
+    var dailyActivityDescription: String {
+        switch dailyActivityTrend {
+        case .up:
+            return "Your daily activity is increasing. Keep up the momentum!"
+        case .down:
+            return "Your activity has decreased recently. Consider reviewing your goals."
+        case .stable:
+            return "Your activity level is consistent. Great job maintaining balance!"
+        }
+    }
+    
+    var sleepConsistencyTrend: TrendDirection {
+        guard effectiveDailyLogs.count >= 7 else { return .stable }
+        
+        let wakeTimes = effectiveDailyLogs.map { timeToMinutes($0.awakeHours.wakeTime) }
+        let variance = calculateVariance(wakeTimes)
+        
+        if variance < 30 { // Less than 30 minutes variance
+            return .up
+        } else if variance > 60 { // More than 1 hour variance
+            return .down
+        } else {
+            return .stable
+        }
+    }
+    
+    var sleepConsistencyDescription: String {
+        switch sleepConsistencyTrend {
+        case .up:
+            return "Your sleep schedule is very consistent. Excellent sleep hygiene!"
+        case .down:
+            return "Your sleep times vary significantly. Try to maintain regular hours."
+        case .stable:
+            return "Your sleep schedule is moderately consistent. Room for improvement."
+        }
+    }
+    
+    var goalProgressTrend: TrendDirection {
+        guard let goals = contentModel.user?.goals.filter({ $0.isActive }), !goals.isEmpty else { return .stable }
+        
+        let completedThisWeek = goals.reduce(0) { $0 + $1.daysCompletedThisWeek.count }
+        let targetThisWeek = goals.reduce(0) { $0 + ($1.customPerWeek ?? 1) }
+        
+        let completionRate = Double(completedThisWeek) / Double(max(1, targetThisWeek))
+        
+        if completionRate >= 0.8 {
+            return .up
+        } else if completionRate < 0.5 {
+            return .down
+        } else {
+            return .stable
+        }
+    }
+    
+    var goalProgressDescription: String {
+        switch goalProgressTrend {
+        case .up:
+            return "You're crushing your goals this week! Keep it up!"
+        case .down:
+            return "Goal completion is behind target. Let's get back on track."
+        case .stable:
+            return "Goal progress is steady. Push a bit more to excel!"
+        }
+    }
+    
+    // Goals analytics
+    var totalGoalHours: Int {
+        contentModel.user?.goals.reduce(0) { $0 + ($1.totalCompletionMinutes / 60) } ?? 0
+    }
+    
+    var bestGoalStreak: Int {
+        // This would need to be calculated from historical data
+        // For now, return a placeholder
+        return 7
+    }
+    
+    var thisWeekGoalProgress: Int {
+        guard let goals = contentModel.user?.goals.filter({ $0.isActive }), !goals.isEmpty else { return 0 }
+        
+        let completed = goals.reduce(0) { $0 + $1.daysCompletedThisWeek.count }
+        let target = goals.reduce(0) { $0 + ($1.customPerWeek ?? 1) }
+        
+        return target > 0 ? Int((Double(completed) / Double(target)) * 100) : 0
+    }
+    
+    var topPerformingGoal: String {
+        guard let goals = contentModel.user?.goals.filter({ $0.isActive }), !goals.isEmpty else {
+            return "No active goals to analyze"
+        }
+        
+        let bestGoal = goals.max { $0.totalCompletionsAllTime < $1.totalCompletionsAllTime }
+        return bestGoal?.title ?? "No standout performer yet"
+    }
+    
+    // Productivity analytics
+    var productivityData: [ProductivityDataPoint] {
+        return effectiveDailyLogs.map { log in
+            let score = Double(log.events.count) / 10.0 // Normalize to 0-1 scale
+            return ProductivityDataPoint(date: log.date, score: min(1.0, score))
+        }
+    }
+    
+    var totalFocusSessions: Int {
+        let focusEventTypes: [EventType] = isYoungProfessional ?
+            [.goal] :
+            [.goal, .assignment, .testStudy]
+        
+        return effectiveDailyLogs.reduce(0) { total, log in
+            total + log.events.filter {
+                focusEventTypes.contains($0.eventType)
+            }.count
+        }
+    }
+    
+    var averageFocusTime: Int {
+        let focusEventTypes: [EventType] = isYoungProfessional ?
+            [.goal] :
+            [.goal, .assignment, .testStudy]
+            
+        let focusEvents = effectiveDailyLogs.flatMap { log in
+            log.events.filter {
+                focusEventTypes.contains($0.eventType)
+            }
+        }
+        
+        guard !focusEvents.isEmpty else { return 0 }
+        
+        let totalMinutes = focusEvents.reduce(0.0) { total, event in
+            total + event.end.timeIntervalSince(event.start) / 60
+        }
+        
+        return Int(totalMinutes / Double(focusEvents.count))
+    }
+    
+    var peakProductivityHour: String {
+        let hourEventCounts = Dictionary(grouping: effectiveDailyLogs.flatMap { $0.events }) { event in
+            Calendar.current.component(.hour, from: event.start)
+        }.mapValues { $0.count }
+        
+        let peakHour = hourEventCounts.max { $0.value < $1.value }?.key ?? 9
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "ha"
+        let date = Calendar.current.date(bySettingHour: peakHour, minute: 0, second: 0, of: Date()) ?? Date()
+        return formatter.string(from: date).lowercased()
+    }
+    
+    var productivityEfficiency: Double {
+        guard !effectiveDailyLogs.isEmpty else { return 0 }
+        
+        let totalScheduledMinutes = effectiveDailyLogs.reduce(0.0) { total, log in
+            let eventDuration = log.events.reduce(0.0) { sum, event in
+                sum + event.end.timeIntervalSince(event.start) / 60
+            }
+            return total + eventDuration
+        }
+        
+        let totalAvailableMinutes = Double(effectiveDailyLogs.count) * (16 * 60) // 16 productive hours
+        return min(1.0, totalScheduledMinutes / totalAvailableMinutes)
+    }
+    
+    var workTimePercentage: Double {
+        let workEvents = effectiveDailyLogs.flatMap { $0.events }.filter { $0.eventType == .work }
+        let totalMinutes = effectiveDailyLogs.flatMap { $0.events }.reduce(0.0) { sum, event in
+            sum + event.end.timeIntervalSince(event.start) / 60
+        }
+        
+        let workMinutes = workEvents.reduce(0.0) { sum, event in
+            sum + event.end.timeIntervalSince(event.start) / 60
+        }
+        
+        return totalMinutes > 0 ? (workMinutes / totalMinutes) * 100 : 0
+    }
+    
+    var personalTimePercentage: Double {
+        let allEvents = effectiveDailyLogs.flatMap { $0.events }
+        let personalEvents = allEvents.filter { event in
+            event.eventType == .goal || event.eventType == .meal || event.eventType == .other
+        }
+        
+        let totalMinutes = allEvents.reduce(0.0) { sum, event in
+            sum + event.end.timeIntervalSince(event.start) / 60
+        }
+        
+        let personalMinutes = personalEvents.reduce(0.0) { sum, event in
+            sum + event.end.timeIntervalSince(event.start) / 60
+        }
+        
+        return totalMinutes > 0 ? (personalMinutes / totalMinutes) * 100 : 0
+    }
+    
+    var restTimePercentage: Double {
+        let allEvents = effectiveDailyLogs.flatMap { $0.events }
+        let restEvents = allEvents.filter { $0.eventType == .other }
+        
+        let totalMinutes = allEvents.reduce(0.0) { sum, event in
+            sum + event.end.timeIntervalSince(event.start) / 60
+        }
+        
+        let restMinutes = restEvents.reduce(0.0) { sum, event in
+            sum + event.end.timeIntervalSince(event.start) / 60
+        }
+        
+        return totalMinutes > 0 ? (restMinutes / totalMinutes) * 100 : 0
+    }
+    
+    var scheduleConsistencyScore: Double {
+        guard effectiveDailyLogs.count >= 7 else { return 0 }
+        
+        let wakeTimes = effectiveDailyLogs.map { timeToMinutes($0.awakeHours.wakeTime) }
+        let sleepTimes = effectiveDailyLogs.map { timeToMinutes($0.awakeHours.sleepTime) }
+        
+        let wakeVariance = calculateVariance(wakeTimes)
+        let sleepVariance = calculateVariance(sleepTimes)
+        
+        // Lower variance = higher consistency (inverted)
+        let consistency = max(0, 1.0 - (wakeVariance + sleepVariance) / 120.0) // Normalize by 2 hours
+        return consistency
+    }
+    
+    func consistencyColor(for day: Weekday) -> Color {
+        AppTheme.Colors.primary.opacity(0.2)
+    }
+    
+    func consistencyScore(for day: Weekday) -> Double {
+        let dayNumber = Weekday.allCases.firstIndex(of: day) ?? 0
+        let dayLogs = effectiveDailyLogs.filter { log in
+            let weekday = Calendar.current.component(.weekday, from: log.date)
+            return weekday == dayNumber + 1
+        }
+        
+        guard !dayLogs.isEmpty else { return 0 }
+        
+        let avgEvents = dayLogs.reduce(0) { $0 + $1.events.count } / dayLogs.count
+        return min(1.0, Double(avgEvents) / 8.0) // Normalize by assuming 8 events is "full"
+    }
+    
+    var averageWakeTime: String {
+        guard !effectiveDailyLogs.isEmpty else { return "N/A" }
+        
+        let totalMinutes = effectiveDailyLogs.reduce(0) { total, log in
+            total + timeToMinutes(log.awakeHours.wakeTime)
+        }
+        
+        let avgMinutes = totalMinutes / effectiveDailyLogs.count
+        return formatMinutesToTime(avgMinutes)
+    }
+    
+    var averageSleepTime: String {
+        guard !effectiveDailyLogs.isEmpty else { return "N/A" }
+        
+        let totalMinutes = effectiveDailyLogs.reduce(0) { total, log in
+            total + timeToMinutes(log.awakeHours.sleepTime)
+        }
+        
+        let avgMinutes = totalMinutes / effectiveDailyLogs.count
+        return formatMinutesToTime(avgMinutes)
+    }
+    
+    var scheduleFillRate: Double {
+        guard !effectiveDailyLogs.isEmpty else { return 0 }
+        
+        let totalScheduledMinutes = effectiveDailyLogs.reduce(0.0) { total, log in
+            let eventDuration = log.events.reduce(0.0) { sum, event in
+                sum + event.end.timeIntervalSince(event.start) / 60
+            }
+            return total + eventDuration
+        }
+        
+        let totalAwakeMinutes = effectiveDailyLogs.reduce(0.0) { total, log in
+            let wakeMinutes = timeToMinutes(log.awakeHours.wakeTime)
+            let sleepMinutes = timeToMinutes(log.awakeHours.sleepTime)
+            let awakeMinutes = sleepMinutes > wakeMinutes ?
+                sleepMinutes - wakeMinutes :
+                (1440 - wakeMinutes) + sleepMinutes
+            return total + Double(awakeMinutes)
+        }
+        
+        return totalAwakeMinutes > 0 ? totalScheduledMinutes / totalAwakeMinutes : 0
+    }
+    
+    var averageFreeTimeHours: Int {
+        guard !effectiveDailyLogs.isEmpty else { return 0 }
+        
+        let totalFreeMinutes = effectiveDailyLogs.reduce(0.0) { total, log in
+            let wakeMinutes = timeToMinutes(log.awakeHours.wakeTime)
+            let sleepMinutes = timeToMinutes(log.awakeHours.sleepTime)
+            let awakeMinutes = sleepMinutes > wakeMinutes ?
+                sleepMinutes - wakeMinutes :
+                (1440 - wakeMinutes) + sleepMinutes
+            
+            let scheduledMinutes = log.events.reduce(0.0) { sum, event in
+                sum + event.end.timeIntervalSince(event.start) / 60
+            }
+            
+            return total + (Double(awakeMinutes) - scheduledMinutes)
+        }
+        
+        return Int(totalFreeMinutes / Double(effectiveDailyLogs.count) / 60)
+    }
+    
+    var schedulePatternInsight: String {
+        let morningEvents = effectiveDailyLogs.flatMap { $0.events }.filter {
+            Calendar.current.component(.hour, from: $0.start) < 12
+        }.count
+        
+        let afternoonEvents = effectiveDailyLogs.flatMap { $0.events }.filter {
+            let hour = Calendar.current.component(.hour, from: $0.start)
+            return hour >= 12 && hour < 17
+        }.count
+        
+        let eveningEvents = effectiveDailyLogs.flatMap { $0.events }.filter {
+            Calendar.current.component(.hour, from: $0.start) >= 17
+        }.count
+        
+        if morningEvents > afternoonEvents && morningEvents > eveningEvents {
+            return "You're most active in the mornings. Great for productivity!"
+        } else if eveningEvents > morningEvents && eveningEvents > afternoonEvents {
+            return "You prefer evening activities. Consider morning goals for balance."
+        } else {
+            return "You maintain balanced activity throughout the day."
+        }
+    }
+    
+    var scheduleOptimizationTip: String {
+        if scheduleFillRate > 0.8 {
+            return "Your schedule is quite packed. Consider adding buffer time between activities."
+        } else if scheduleFillRate < 0.4 {
+            return "You have plenty of free time. Consider adding more structured activities."
+        } else {
+            return "Your schedule balance looks healthy. Keep maintaining this rhythm."
+        }
+    }
+    
+    var scheduleBestPractice: String {
+        if scheduleConsistencyScore > 0.8 {
+            return "Excellent schedule consistency! Your routine is well-established."
+        } else {
+            return "Try to maintain more consistent wake and sleep times for better rhythm."
+        }
+    }
+    
+    var consistencyPattern: String {
+        let weekdays = [Weekday.monday, .tuesday, .wednesday, .thursday, .friday]
+        let weekendDays = [Weekday.saturday, .sunday]
+        
+        let weekdayEvents = effectiveDailyLogs.filter { log in
+            let weekday = Calendar.current.component(.weekday, from: log.date)
+            return weekdays.contains(Weekday.allCases[weekday - 1])
+        }.reduce(0) { $0 + $1.events.count }
+        
+        let weekendEvents = effectiveDailyLogs.filter { log in
+            let weekday = Calendar.current.component(.weekday, from: log.date)
+            return weekendDays.contains(Weekday.allCases[weekday - 1])
+        }.reduce(0) { $0 + $1.events.count }
+        
+        if weekdayEvents > weekendEvents * 2 {
+            return "You're most productive on weekdays. Consider lighter weekend goals."
+        } else if weekendEvents > weekdayEvents {
+            return "You're more active on weekends. Great work-life balance!"
+        } else {
+            return "You maintain consistent activity throughout the week."
+        }
+    }
+    
+    var goalRecommendation: String {
+        guard let goals = contentModel.user?.goals else { return "Start tracking goals to get recommendations" }
+        
+        if goals.isEmpty {
+            return "Consider adding 2-3 specific, measurable goals to start building habits."
+        } else if goals.count > 5 {
+            return "You have many goals. Focus on your top 3 for better success rates."
+        } else {
+            return "Your goal count looks balanced. Focus on consistency over perfection."
+        }
+    }
+    
+    // Helper functions
+    func timeToMinutes(_ time: String) -> Int {
+        let components = time.split(separator: ":").compactMap { Int($0) }
+        guard components.count == 2 else { return 0 }
+        return components[0] * 60 + components[1]
+    }
+    
+    func formatMinutesToTime(_ minutes: Int) -> String {
+        let hours = minutes / 60
+        let mins = minutes % 60
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        
+        let date = Calendar.current.date(bySettingHour: hours, minute: mins, second: 0, of: Date()) ?? Date()
+        return formatter.string(from: date)
+    }
+    
+    func calculateVariance(_ values: [Int]) -> Double {
+        guard values.count > 1 else { return 0 }
+        
+        let mean = Double(values.reduce(0, +)) / Double(values.count)
+        let squaredDifferences = values.map { pow(Double($0) - mean, 2) }
+        return squaredDifferences.reduce(0, +) / Double(values.count - 1)
+    }
+    
+    func colorForEventType(_ type: EventType) -> Color {
+        switch type {
+        case .school, .collegeClass: return Color.blue
+        case .work: return Color.purple
+        case .goal: return AppTheme.Colors.primary
+        case .recurringCommitment: return Color.green
+        case .assignment: return Color.orange
+        case .testStudy: return Color.red
+        case .meal: return Color.mint
+        case .other: return Color.gray
+        }
+    }
+}
+
 // MARK: - Schedule Section
 private extension AnalyticsView {
     
     var scheduleSection: some View {
         VStack(spacing: 24) {
-            if !recentDailyLogs.isEmpty {
+            if !effectiveDailyLogs.isEmpty {
                 scheduleConsistency
                 timeDistribution
                 scheduleOptimization
@@ -781,15 +1287,6 @@ private extension AnalyticsView {
                 }
             }
         }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(AppTheme.Colors.cardBackground.opacity(0.8))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(AppTheme.Colors.overlay.opacity(0.3), lineWidth: 0.5)
-                )
-        )
     }
     
     private var timeDistribution: some View {
@@ -1164,487 +1661,8 @@ struct ProductivityDataPoint {
     let score: Double
 }
 
-// MARK: - Computed Properties for Analytics
-
-private extension AnalyticsView {
-    
-    // Overview analytics
-    var totalEventsCount: Int {
-        recentDailyLogs.reduce(0) { $0 + $1.events.count }
-    }
-    
-    var averageEventsPerDay: Double {
-        guard !recentDailyLogs.isEmpty else { return 0 }
-        return Double(totalEventsCount) / Double(recentDailyLogs.count)
-    }
-    
-    var mostProductiveDay: String {
-        let dayEventCounts = Dictionary(grouping: recentDailyLogs) { 
-            Calendar.current.component(.weekday, from: $0.date)
-        }.mapValues { logs in
-            logs.reduce(0) { $0 + $1.events.count }
-        }
-        
-        let mostProductiveDayNumber = dayEventCounts.max { $0.value < $1.value }?.key ?? 1
-        let dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-        return dayNames[(mostProductiveDayNumber - 1) % 7]
-    }
-    
-    var scheduleScore: Double {
-        guard !recentDailyLogs.isEmpty else { return 0 }
-        
-        let totalMinutes = recentDailyLogs.reduce(0.0) { total, log in
-            let eventDuration = log.events.reduce(0.0) { sum, event in
-                sum + event.end.timeIntervalSince(event.start) / 60
-            }
-            return total + eventDuration
-        }
-        
-        let availableMinutes = Double(recentDailyLogs.count) * (16 * 60) // Assume 16 productive hours per day
-        return min(1.0, totalMinutes / availableMinutes)
-    }
-    
-    var activityBreakdownData: [ActivityBreakdownData] {
-        let eventCounts = Dictionary(grouping: recentDailyLogs.flatMap { $0.events }) { $0.eventType }
-            .mapValues { $0.count }
-        
-        return eventCounts.map { type, count in
-            ActivityBreakdownData(
-                type: type,
-                count: count,
-                color: colorForEventType(type)
-            )
-        }.sorted { $0.count > $1.count }
-    }
-    
-    var dailyActivityTrend: TrendDirection {
-        guard recentDailyLogs.count >= 3 else { return .stable }
-        
-        let recent = recentDailyLogs.suffix(3).map { $0.events.count }
-        let earlier = recentDailyLogs.prefix(max(1, recentDailyLogs.count - 3)).map { $0.events.count }
-        
-        let recentAvg = Double(recent.reduce(0, +)) / Double(recent.count)
-        let earlierAvg = Double(earlier.reduce(0, +)) / Double(max(1, earlier.count))
-        
-        if recentAvg > earlierAvg * 1.1 {
-            return .up
-        } else if recentAvg < earlierAvg * 0.9 {
-            return .down
-        } else {
-            return .stable
-        }
-    }
-    
-    var dailyActivityDescription: String {
-        switch dailyActivityTrend {
-        case .up:
-            return "Your daily activity is increasing. Keep up the momentum!"
-        case .down:
-            return "Your activity has decreased recently. Consider reviewing your goals."
-        case .stable:
-            return "Your activity level is consistent. Great job maintaining balance!"
-        }
-    }
-    
-    var sleepConsistencyTrend: TrendDirection {
-        guard recentDailyLogs.count >= 7 else { return .stable }
-        
-        let wakeTimes = recentDailyLogs.map { timeToMinutes($0.awakeHours.wakeTime) }
-        let variance = calculateVariance(wakeTimes)
-        
-        if variance < 30 { // Less than 30 minutes variance
-            return .up
-        } else if variance > 60 { // More than 1 hour variance
-            return .down
-        } else {
-            return .stable
-        }
-    }
-    
-    var sleepConsistencyDescription: String {
-        switch sleepConsistencyTrend {
-        case .up:
-            return "Your sleep schedule is very consistent. Excellent sleep hygiene!"
-        case .down:
-            return "Your sleep times vary significantly. Try to maintain regular hours."
-        case .stable:
-            return "Your sleep schedule is moderately consistent. Room for improvement."
-        }
-    }
-    
-    var goalProgressTrend: TrendDirection {
-        guard let goals = contentModel.user?.goals.filter({ $0.isActive }), !goals.isEmpty else { return .stable }
-        
-        let completedThisWeek = goals.reduce(0) { $0 + $1.daysCompletedThisWeek.count }
-        let targetThisWeek = goals.reduce(0) { $0 + ($1.customPerWeek ?? 1) }
-        
-        let completionRate = Double(completedThisWeek) / Double(max(1, targetThisWeek))
-        
-        if completionRate >= 0.8 {
-            return .up
-        } else if completionRate < 0.5 {
-            return .down
-        } else {
-            return .stable
-        }
-    }
-    
-    var goalProgressDescription: String {
-        switch goalProgressTrend {
-        case .up:
-            return "You're crushing your goals this week! Keep it up!"
-        case .down:
-            return "Goal completion is behind target. Let's get back on track."
-        case .stable:
-            return "Goal progress is steady. Push a bit more to excel!"
-        }
-    }
-    
-    // Goals analytics
-    var totalGoalHours: Int {
-        contentModel.user?.goals.reduce(0) { $0 + ($1.totalCompletionMinutes / 60) } ?? 0
-    }
-    
-    var bestGoalStreak: Int {
-        // This would need to be calculated from historical data
-        // For now, return a placeholder
-        return 7
-    }
-    
-    var thisWeekGoalProgress: Int {
-        guard let goals = contentModel.user?.goals.filter({ $0.isActive }), !goals.isEmpty else { return 0 }
-        
-        let completed = goals.reduce(0) { $0 + $1.daysCompletedThisWeek.count }
-        let target = goals.reduce(0) { $0 + ($1.customPerWeek ?? 1) }
-        
-        return target > 0 ? Int((Double(completed) / Double(target)) * 100) : 0
-    }
-    
-    var topPerformingGoal: String {
-        guard let goals = contentModel.user?.goals.filter({ $0.isActive }), !goals.isEmpty else { 
-            return "No active goals to analyze"
-        }
-        
-        let bestGoal = goals.max { $0.totalCompletionsAllTime < $1.totalCompletionsAllTime }
-        return bestGoal?.title ?? "No standout performer yet"
-    }
-    
-    var consistencyPattern: String {
-        let weekdays = [Weekday.monday, .tuesday, .wednesday, .thursday, .friday]
-        let weekendDays = [Weekday.saturday, .sunday]
-        
-        let weekdayEvents = recentDailyLogs.filter { log in
-            let weekday = Calendar.current.component(.weekday, from: log.date)
-            return weekdays.contains(Weekday.allCases[weekday - 1])
-        }.reduce(0) { $0 + $1.events.count }
-        
-        let weekendEvents = recentDailyLogs.filter { log in
-            let weekday = Calendar.current.component(.weekday, from: log.date)
-            return weekendDays.contains(Weekday.allCases[weekday - 1])
-        }.reduce(0) { $0 + $1.events.count }
-        
-        if weekdayEvents > weekendEvents * 2 {
-            return "You're most productive on weekdays. Consider lighter weekend goals."
-        } else if weekendEvents > weekdayEvents {
-            return "You're more active on weekends. Great work-life balance!"
-        } else {
-            return "You maintain consistent activity throughout the week."
-        }
-    }
-    
-    var goalRecommendation: String {
-        guard let goals = contentModel.user?.goals else { return "Start tracking goals to get recommendations" }
-        
-        if goals.isEmpty {
-            return "Consider adding 2-3 specific, measurable goals to start building habits."
-        } else if goals.count > 5 {
-            return "You have many goals. Focus on your top 3 for better success rates."
-        } else {
-            return "Your goal count looks balanced. Focus on consistency over perfection."
-        }
-    }
-    
-    // Productivity analytics
-    var productivityData: [ProductivityDataPoint] {
-        return recentDailyLogs.map { log in
-            let score = Double(log.events.count) / 10.0 // Normalize to 0-1 scale
-            return ProductivityDataPoint(date: log.date, score: min(1.0, score))
-        }
-    }
-    
-    var totalFocusSessions: Int {
-        recentDailyLogs.reduce(0) { total, log in
-            total + log.events.filter { 
-                $0.eventType == .goal || $0.eventType == .assignment || $0.eventType == .testStudy
-            }.count
-        }
-    }
-    
-    var averageFocusTime: Int {
-        let focusEvents = recentDailyLogs.flatMap { log in
-            log.events.filter { 
-                $0.eventType == .goal || $0.eventType == .assignment || $0.eventType == .testStudy
-            }
-        }
-        
-        guard !focusEvents.isEmpty else { return 0 }
-        
-        let totalMinutes = focusEvents.reduce(0.0) { total, event in
-            total + event.end.timeIntervalSince(event.start) / 60
-        }
-        
-        return Int(totalMinutes / Double(focusEvents.count))
-    }
-    
-    var peakProductivityHour: String {
-        let hourEventCounts = Dictionary(grouping: recentDailyLogs.flatMap { $0.events }) { event in
-            Calendar.current.component(.hour, from: event.start)
-        }.mapValues { $0.count }
-        
-        let peakHour = hourEventCounts.max { $0.value < $1.value }?.key ?? 9
-        
-        let formatter = DateFormatter()
-        formatter.dateFormat = "ha"
-        let date = Calendar.current.date(bySettingHour: peakHour, minute: 0, second: 0, of: Date()) ?? Date()
-        return formatter.string(from: date).lowercased()
-    }
-    
-    var productivityEfficiency: Double {
-        guard !recentDailyLogs.isEmpty else { return 0 }
-        
-        let totalScheduledMinutes = recentDailyLogs.reduce(0.0) { total, log in
-            let eventDuration = log.events.reduce(0.0) { sum, event in
-                sum + event.end.timeIntervalSince(event.start) / 60
-            }
-            return total + eventDuration
-        }
-        
-        let totalAvailableMinutes = Double(recentDailyLogs.count) * (16 * 60) // 16 productive hours
-        return min(1.0, totalScheduledMinutes / totalAvailableMinutes)
-    }
-    
-    var workTimePercentage: Double {
-        let workEvents = recentDailyLogs.flatMap { $0.events }.filter { $0.eventType == .work }
-        let totalMinutes = recentDailyLogs.flatMap { $0.events }.reduce(0.0) { sum, event in
-            sum + event.end.timeIntervalSince(event.start) / 60
-        }
-        
-        let workMinutes = workEvents.reduce(0.0) { sum, event in
-            sum + event.end.timeIntervalSince(event.start) / 60
-        }
-        
-        return totalMinutes > 0 ? (workMinutes / totalMinutes) * 100 : 0
-    }
-    
-    var personalTimePercentage: Double {
-        let allEvents = recentDailyLogs.flatMap { $0.events }
-        let personalEvents = allEvents.filter { event in
-            event.eventType == .goal || event.eventType == .meal || event.eventType == .other
-        }
-        
-        let totalMinutes = allEvents.reduce(0.0) { sum, event in
-            sum + event.end.timeIntervalSince(event.start) / 60
-        }
-        
-        let personalMinutes = personalEvents.reduce(0.0) { sum, event in
-            sum + event.end.timeIntervalSince(event.start) / 60
-        }
-        
-        return totalMinutes > 0 ? (personalMinutes / totalMinutes) * 100 : 0
-    }
-    
-    var restTimePercentage: Double {
-        let allEvents = recentDailyLogs.flatMap { $0.events }
-        let restEvents = allEvents.filter { $0.eventType == .other }
-        
-        let totalMinutes = allEvents.reduce(0.0) { sum, event in
-            sum + event.end.timeIntervalSince(event.start) / 60
-        }
-        
-        let restMinutes = restEvents.reduce(0.0) { sum, event in
-            sum + event.end.timeIntervalSince(event.start) / 60
-        }
-        
-        return totalMinutes > 0 ? (restMinutes / totalMinutes) * 100 : 0
-    }
-    
-    // Schedule analytics
-    var scheduleConsistencyScore: Double {
-        guard recentDailyLogs.count >= 7 else { return 0 }
-        
-        let wakeTimes = recentDailyLogs.map { timeToMinutes($0.awakeHours.wakeTime) }
-        let sleepTimes = recentDailyLogs.map { timeToMinutes($0.awakeHours.sleepTime) }
-        
-        let wakeVariance = calculateVariance(wakeTimes)
-        let sleepVariance = calculateVariance(sleepTimes)
-        
-        // Lower variance = higher consistency (inverted)
-        let consistency = max(0, 1.0 - (wakeVariance + sleepVariance) / 120.0) // Normalize by 2 hours
-        return consistency
-    }
-    
-    func consistencyColor(for day: Weekday) -> Color {
-        AppTheme.Colors.primary.opacity(0.2)
-    }
-    
-    func consistencyScore(for day: Weekday) -> Double {
-        let dayNumber = Weekday.allCases.firstIndex(of: day) ?? 0
-        let dayLogs = recentDailyLogs.filter { log in
-            let weekday = Calendar.current.component(.weekday, from: log.date)
-            return weekday == dayNumber + 1
-        }
-        
-        guard !dayLogs.isEmpty else { return 0 }
-        
-        let avgEvents = dayLogs.reduce(0) { $0 + $1.events.count } / dayLogs.count
-        return min(1.0, Double(avgEvents) / 8.0) // Normalize by assuming 8 events is "full"
-    }
-    
-    var averageWakeTime: String {
-        guard !recentDailyLogs.isEmpty else { return "N/A" }
-        
-        let totalMinutes = recentDailyLogs.reduce(0) { total, log in
-            total + timeToMinutes(log.awakeHours.wakeTime)
-        }
-        
-        let avgMinutes = totalMinutes / recentDailyLogs.count
-        return formatMinutesToTime(avgMinutes)
-    }
-    
-    var averageSleepTime: String {
-        guard !recentDailyLogs.isEmpty else { return "N/A" }
-        
-        let totalMinutes = recentDailyLogs.reduce(0) { total, log in
-            total + timeToMinutes(log.awakeHours.sleepTime)
-        }
-        
-        let avgMinutes = totalMinutes / recentDailyLogs.count
-        return formatMinutesToTime(avgMinutes)
-    }
-    
-    var scheduleFillRate: Double {
-        guard !recentDailyLogs.isEmpty else { return 0 }
-        
-        let totalScheduledMinutes = recentDailyLogs.reduce(0.0) { total, log in
-            let eventDuration = log.events.reduce(0.0) { sum, event in
-                sum + event.end.timeIntervalSince(event.start) / 60
-            }
-            return total + eventDuration
-        }
-        
-        let totalAwakeMinutes = recentDailyLogs.reduce(0.0) { total, log in
-            let wakeMinutes = timeToMinutes(log.awakeHours.wakeTime)
-            let sleepMinutes = timeToMinutes(log.awakeHours.sleepTime)
-            let awakeMinutes = sleepMinutes > wakeMinutes ? 
-                sleepMinutes - wakeMinutes : 
-                (1440 - wakeMinutes) + sleepMinutes
-            return total + Double(awakeMinutes)
-        }
-        
-        return totalAwakeMinutes > 0 ? totalScheduledMinutes / totalAwakeMinutes : 0
-    }
-    
-    var averageFreeTimeHours: Int {
-        guard !recentDailyLogs.isEmpty else { return 0 }
-        
-        let totalFreeMinutes = recentDailyLogs.reduce(0.0) { total, log in
-            let wakeMinutes = timeToMinutes(log.awakeHours.wakeTime)
-            let sleepMinutes = timeToMinutes(log.awakeHours.sleepTime)
-            let awakeMinutes = sleepMinutes > wakeMinutes ? 
-                sleepMinutes - wakeMinutes : 
-                (1440 - wakeMinutes) + sleepMinutes
-            
-            let scheduledMinutes = log.events.reduce(0.0) { sum, event in
-                sum + event.end.timeIntervalSince(event.start) / 60
-            }
-            
-            return total + (Double(awakeMinutes) - scheduledMinutes)
-        }
-        
-        return Int(totalFreeMinutes / Double(recentDailyLogs.count) / 60)
-    }
-    
-    var schedulePatternInsight: String {
-        let morningEvents = recentDailyLogs.flatMap { $0.events }.filter { 
-            Calendar.current.component(.hour, from: $0.start) < 12 
-        }.count
-        
-        let afternoonEvents = recentDailyLogs.flatMap { $0.events }.filter { 
-            let hour = Calendar.current.component(.hour, from: $0.start)
-            return hour >= 12 && hour < 17
-        }.count
-        
-        let eveningEvents = recentDailyLogs.flatMap { $0.events }.filter { 
-            Calendar.current.component(.hour, from: $0.start) >= 17 
-        }.count
-        
-        if morningEvents > afternoonEvents && morningEvents > eveningEvents {
-            return "You're most active in the mornings. Great for productivity!"
-        } else if eveningEvents > morningEvents && eveningEvents > afternoonEvents {
-            return "You prefer evening activities. Consider morning goals for balance."
-        } else {
-            return "You maintain balanced activity throughout the day."
-        }
-    }
-    
-    var scheduleOptimizationTip: String {
-        if scheduleFillRate > 0.8 {
-            return "Your schedule is quite packed. Consider adding buffer time between activities."
-        } else if scheduleFillRate < 0.4 {
-            return "You have plenty of free time. Consider adding more structured activities."
-        } else {
-            return "Your schedule balance looks healthy. Keep maintaining this rhythm."
-        }
-    }
-    
-    var scheduleBestPractice: String {
-        if scheduleConsistencyScore > 0.8 {
-            return "Excellent schedule consistency! Your routine is well-established."
-        } else {
-            return "Try to maintain more consistent wake and sleep times for better rhythm."
-        }
-    }
-    
-    // Helper functions
-    func timeToMinutes(_ time: String) -> Int {
-        let components = time.split(separator: ":").compactMap { Int($0) }
-        guard components.count == 2 else { return 0 }
-        return components[0] * 60 + components[1]
-    }
-    
-    func formatMinutesToTime(_ minutes: Int) -> String {
-        let hours = minutes / 60
-        let mins = minutes % 60
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        
-        let date = Calendar.current.date(bySettingHour: hours, minute: mins, second: 0, of: Date()) ?? Date()
-        return formatter.string(from: date)
-    }
-    
-    func calculateVariance(_ values: [Int]) -> Double {
-        guard values.count > 1 else { return 0 }
-        
-        let mean = Double(values.reduce(0, +)) / Double(values.count)
-        let squaredDifferences = values.map { pow(Double($0) - mean, 2) }
-        return squaredDifferences.reduce(0, +) / Double(values.count - 1)
-    }
-    
-    func colorForEventType(_ type: EventType) -> Color {
-        switch type {
-        case .school, .collegeClass: return Color.blue
-        case .work: return Color.purple
-        case .goal: return AppTheme.Colors.primary
-        case .recurringCommitment: return Color.green
-        case .assignment: return Color.orange
-        case .testStudy: return Color.red
-        case .meal: return Color.mint
-        case .other: return Color.gray
-        }
-    }
-}
-
 #Preview {
     AnalyticsView(selectedTab: .constant(2))
         .environment(ContentModel())
 }
+
