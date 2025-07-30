@@ -44,6 +44,9 @@ class ContentModel {
     
     let db = Firestore.firestore()
     
+    // Serial queue for userHistory operations
+    private let historyQueue = DispatchQueue(label: "com.timeflow.userhistory", qos: .utility)
+    
     func currentUID() -> String? {
         Auth.auth().currentUser?.uid
     }
@@ -76,6 +79,8 @@ class ContentModel {
                     print("✅ User data fetched successfully")
                     // Reset credits if needed after login
                     checkAndResetCreditsIfNeeded()
+                    // Save today's schedule to history
+                    await saveTodaysScheduleToHistory()
                     // Check if we need to generate today's schedule
                     await checkAndOfferScheduleGeneration()
                 } catch {
@@ -86,6 +91,8 @@ class ContentModel {
             // User already logged in, just check credits and schedule
             checkAndResetCreditsIfNeeded()
             Task {
+                // Save today's schedule to history on app open
+                await saveTodaysScheduleToHistory()
                 await checkAndOfferScheduleGeneration()
             }
         }
@@ -156,6 +163,13 @@ class ContentModel {
         // Set up listener if not already done
         if userListener == nil {
             setupUserListener()
+        }
+        
+        // Fetch user history for analytics
+        do {
+            try await fetchUserHistory()
+        } catch {
+            print("⚠️ Failed to fetch user history: \(error)")
         }
         
         // Schedule notifications with user's wake/sleep times
@@ -373,6 +387,9 @@ class ContentModel {
                 print("⚠️ Failed to save schedule to Firebase: \(error)")
                 // Continue anyway, as we have it locally
             }
+            
+            // Save today's updated schedule to history
+            await saveTodaysScheduleToHistory()
             
             return events
             
@@ -843,14 +860,10 @@ class ContentModel {
         // Save to Firebase
         try await saveCurrentScheduleToFirebase(events: completeSchedule)
         
+        // Save updated schedule to history
+        await saveTodaysScheduleToHistory()
+        
         return completeSchedule
-    }
-    
-    // MARK: - Notification Settings
-    
-    func updateNotificationSettings() async {
-        // Re-schedule notifications whenever user settings change
-        await scheduleUserNotifications()
     }
     
     // MARK: - Smart Schedule Generation
@@ -940,6 +953,159 @@ class ContentModel {
         NotificationManager.shared.cancelAllNotifications()
         
         print("✅ User account deleted successfully")
+    }
+    
+    // MARK: - Daily Schedule Archiving
+    
+    func archiveTodaysSchedule() async throws {
+        guard let user = self.user, !user.currentSchedule.isEmpty else { return }
+        
+        let today = Date()
+        let dailyLog = DailyInfo(
+            date: today,
+            events: user.currentSchedule,
+            awakeHours: user.todaysAwakeHours ?? user.awakeHours
+        )
+        
+        // Initialize userHistory if needed
+        if userHistory == nil {
+            userHistory = UserHistory()
+        }
+        
+        guard var history = userHistory else { return }
+        
+        // Add today's log to history
+        history.dailyLogs.append(dailyLog)
+        
+        // Keep only last 30 days of history
+        history.dailyLogs = history.dailyLogs.suffix(30).map { $0 }
+        
+        // Update the property once at the end
+        userHistory = history
+        
+        // Save to Firebase
+        try await saveUserHistoryToFirebase()
+        
+        print("✅ Archived today's schedule with \(user.currentSchedule.count) events")
+    }
+    
+    func clearTodaysScheduleForNewDay() async throws {
+        // Archive current schedule first
+        try await archiveTodaysSchedule()
+        
+        // Clear current schedule for new day
+        user?.currentSchedule = []
+        
+        // Save updated user
+        try await saveUserInfo()
+        
+        print("✅ Cleared today's schedule for new day")
+    }
+    
+    private func saveUserHistoryToFirebase() async throws {
+        guard let uid = currentUID(), let history = userHistory else { return }
+        
+        // Convert userHistory to Firestore format
+        let historyData = try JSONEncoder().encode(history)
+        let historyDict = try JSONSerialization.jsonObject(with: historyData) as? [String: Any] ?? [:]
+        
+        try await db
+            .collection("users")
+            .document(uid)
+            .updateData(["userHistory": historyDict])
+    }
+    
+    func fetchUserHistory() async throws {
+        guard let uid = currentUID() else { return }
+        
+        let snapshot = try await db
+            .collection("users")
+            .document(uid)
+            .getDocument()
+        
+        if let historyData = snapshot.get("userHistory") as? [String: Any],
+           let jsonData = try? JSONSerialization.data(withJSONObject: historyData),
+           let history = try? JSONDecoder().decode(UserHistory.self, from: jsonData) {
+            userHistory = history
+            print("✅ Loaded user history with \(history.dailyLogs.count) daily logs")
+        } else {
+            userHistory = UserHistory()
+            print("📝 Initialized empty user history")
+        }
+    }
+    
+    func checkForNewDay() async {
+        guard let user = self.user else { return }
+        
+        // Check if we need to archive yesterday's schedule
+        let lastScheduleDate = UserDefaults.standard.object(forKey: "lastScheduleDate") as? Date
+        let today = Calendar.current.startOfDay(for: Date())
+        
+        if let lastDate = lastScheduleDate {
+            let lastDay = Calendar.current.startOfDay(for: lastDate)
+            
+            // If it's a new day and we had a schedule yesterday
+            if today > lastDay && !user.currentSchedule.isEmpty {
+                do {
+                    try await clearTodaysScheduleForNewDay()
+                } catch {
+                    print("❌ Failed to archive yesterday's schedule: \(error)")
+                }
+            }
+        }
+        
+        // Update last schedule date
+        UserDefaults.standard.set(Date(), forKey: "lastScheduleDate")
+    }
+    
+    // MARK: - Simple Daily Schedule Tracking
+    
+    func saveTodaysScheduleToHistory() async {
+        guard let user = self.user else { return }
+        
+        // Initialize userHistory if needed
+        if userHistory == nil {
+            userHistory = UserHistory()
+        }
+        
+        guard var history = userHistory else { return }
+        
+        let today = Calendar.current.startOfDay(for: Date())
+        
+        // Find existing entry for today
+        if let existingIndex = history.dailyLogs.firstIndex(where: { 
+            Calendar.current.startOfDay(for: $0.date) == today 
+        }) {
+            // Update existing entry for today
+            history.dailyLogs[existingIndex] = DailyInfo(
+                date: Date(),
+                events: user.currentSchedule,
+                awakeHours: user.todaysAwakeHours ?? user.awakeHours
+            )
+            print("✅ Updated today's schedule in history (\(user.currentSchedule.count) events)")
+        } else {
+            // Add new entry for today
+            let dailyLog = DailyInfo(
+                date: Date(),
+                events: user.currentSchedule,
+                awakeHours: user.todaysAwakeHours ?? user.awakeHours
+            )
+            history.dailyLogs.append(dailyLog)
+            print("✅ Added today's schedule to history (\(user.currentSchedule.count) events)")
+        }
+        
+        // Keep only last 30 days
+        history.dailyLogs = history.dailyLogs.suffix(30).map { $0 }
+        
+        // Update the property once at the end
+        userHistory = history
+        
+        // Try to save to Firebase (but don't fail if it doesn't work)
+        do {
+            try await saveUserHistoryToFirebase()
+        } catch {
+            print("⚠️ Failed to save history to Firebase (will retry later): \(error)")
+        }
     }
 }
 

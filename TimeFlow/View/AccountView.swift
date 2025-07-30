@@ -255,7 +255,6 @@ private extension AccountView {
                     Text("Smart Schedule Generation")
                         .font(.body.weight(.medium))
                         .foregroundColor(AppTheme.Colors.textPrimary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                     
                     Text("Morning notification + automatic schedule when possible")
                         .font(.caption)
@@ -885,7 +884,7 @@ private struct AwakeHoursConfigSheet: View {
             do {
                 try await contentModel.saveUserInfo()
                 // Reschedule notifications with new wake/sleep times
-                await contentModel.updateNotificationSettings()
+                await contentModel.scheduleUserNotifications()
                 await MainActor.run {
                     isSaving = false
                     dismiss()

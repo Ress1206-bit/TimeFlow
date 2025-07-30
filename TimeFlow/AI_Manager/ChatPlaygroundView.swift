@@ -10,45 +10,6 @@ import OpenAI
 
 private let client = OpenAI(apiToken: "")
 
-
-//private func chatWithAI(prompt: String, model: String = "gpt-4o") async throws -> String {
-//
-//    let tuples: [(ChatQuery.ChatCompletionMessageParam.Role, String)] = [
-//        (.system, "You are TimeFlow, an AI day-planner."),
-//        (.user,   prompt)
-//    ]
-//
-//    let messages: [ChatQuery.ChatCompletionMessageParam] = try tuples.map { role, content in
-//        guard let msg = ChatQuery.ChatCompletionMessageParam(role: role, content: content) else {
-//            throw OpenAIHelperError.messageInitFailed(content)
-//        }
-//        return msg
-//    }
-//
-//    let query  = ChatQuery(messages: messages, model: model)
-//    let result = try await client.chats(query: query)
-//    
-//    if let usage = result.usage {
-//        
-//        let inputTokensAmount = Double(usage.promptTokens)
-//        let outputTokensAmount = Double(usage.completionTokens)
-//        
-//        print("Input tokens: \(inputTokensAmount)")
-//        print("Output tokens: \(outputTokensAmount)")
-//        
-//        let priceInputPerTokens: Double = 1.1 / 1000000
-//        let priceOutputPerTokens: Double = 4.4 / 1000000
-//        
-//        let totalCost = inputTokensAmount * priceInputPerTokens + outputTokensAmount * priceOutputPerTokens
-//        
-//        print("Estimated Cost of Request:", totalCost)
-//        
-//        
-//    }
-//
-//    return result.choices.first?.message.content ?? ""
-//}
-
 private func chatWithAI(prompt: String, model: String = "gpt-4o") async throws -> String {
     
     let tuples: [(ChatQuery.ChatCompletionMessageParam.Role, String)] = [
