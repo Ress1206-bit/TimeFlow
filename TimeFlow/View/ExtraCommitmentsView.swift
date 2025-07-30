@@ -21,33 +21,40 @@ struct ExtraCommitmentsView: View {
     @Binding var selectedTab: Int
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                AppTheme.Gradients.backgroundGradient(for: Calendar.current.component(.hour, from: Date()))
-                    .ignoresSafeArea()
+        ZStack {
+            // Background gradient
+            LinearGradient(
+                colors: [
+                    AppTheme.Colors.background,
+                    AppTheme.Colors.secondary.opacity(0.3),
+                    AppTheme.Colors.background
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                headerSection
                 
-                VStack(spacing: 0) {
-                    headerSection
-                    
-                    if user.recurringCommitments.isEmpty {
-                        emptyStateView
-                    } else {
-                        commitmentListView
-                    }
-                    
-                    Spacer()
-                    
-                    TabBarView(selectedTab: $selectedTab)
+                if user.recurringCommitments.isEmpty {
+                    emptyStateView
+                } else {
+                    commitmentListView
                 }
+                
+                Spacer()
+                
+                TabBarView(selectedTab: $selectedTab)
             }
-            .navigationBarHidden(true)
-            .onAppear {
-                if let currentUser = contentModel.user {
-                    user = currentUser
-                }
-                withAnimation(.easeOut(duration: 0.6)) {
-                    animateContent = true
-                }
+        }
+        .navigationBarHidden(true)
+        .onAppear {
+            if let currentUser = contentModel.user {
+                user = currentUser
+            }
+            withAnimation(.easeOut(duration: 0.6)) {
+                animateContent = true
             }
         }
         .sheet(isPresented: $showingAddSheet) {
@@ -79,11 +86,17 @@ struct ExtraCommitmentsView: View {
 private extension ExtraCommitmentsView {
     
     var headerSection: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 0) {
             HStack {
-                Text("Extra Commitments")
-                    .font(.title.weight(.bold))
-                    .foregroundColor(.white)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Commitments")
+                        .font(.system(size: 32, weight: .bold))
+                        .foregroundColor(AppTheme.Colors.textPrimary)
+                    
+                    Text(headerSubtitle)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(AppTheme.Colors.textSecondary)
+                }
                 
                 Spacer()
                 
@@ -92,27 +105,41 @@ private extension ExtraCommitmentsView {
                     showingAddSheet = true
                 }) {
                     Image(systemName: "plus")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.white)
                         .frame(width: 36, height: 36)
                         .background(
                             Circle()
-                                .fill(AppTheme.Colors.primary)
+                                .fill(AppTheme.Colors.accent)
+                                .shadow(color: AppTheme.Colors.accent.opacity(0.3), radius: 4, y: 2)
                         )
-                        .shadow(color: AppTheme.Colors.primary.opacity(0.3), radius: 4, y: 2)
                 }
             }
+            .padding(.horizontal, 24)
+            .padding(.top, 16)
+            .padding(.bottom, 24)
             
-            Text("Manage your regular weekly activities and commitments")
-                .font(.subheadline)
-                .foregroundColor(.white.opacity(0.8))
-                .frame(maxWidth: .infinity, alignment: .leading)
+            // Subtle divider
+            Rectangle()
+                .fill(AppTheme.Colors.overlay.opacity(0.1))
+                .frame(height: 1)
+                .padding(.horizontal, 24)
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 16)
+        .background(AppTheme.Colors.background)
         .opacity(animateContent ? 1.0 : 0)
         .offset(y: animateContent ? 0 : -20)
-        .animation(.easeOut(duration: 0.8).delay(0.1), value: animateContent)
+        .animation(.easeOut(duration: 0.6).delay(0.1), value: animateContent)
+    }
+    
+    private var headerSubtitle: String {
+        let count = user.recurringCommitments.count
+        if count == 0 {
+            return "No commitments yet"
+        } else if count == 1 {
+            return "1 commitment"
+        } else {
+            return "\(count) commitments"
+        }
     }
 }
 
@@ -120,28 +147,38 @@ private extension ExtraCommitmentsView {
 private extension ExtraCommitmentsView {
     
     var emptyStateView: some View {
-        VStack(spacing: 32) {
+        VStack(spacing: 40) {
             Spacer()
             
             VStack(spacing: 24) {
-                Circle()
-                    .fill(AppTheme.Colors.primary.opacity(0.2))
-                    .frame(width: 120, height: 120)
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                AppTheme.Colors.accent.opacity(0.1),
+                                AppTheme.Colors.accent.opacity(0.05)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 80, height: 80)
                     .overlay(
-                        Image(systemName: "calendar.badge.plus")
-                            .font(.system(size: 48, weight: .medium))
-                            .foregroundColor(AppTheme.Colors.primary)
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 32, weight: .light))
+                            .foregroundColor(AppTheme.Colors.accent)
                     )
                 
                 VStack(spacing: 12) {
-                    Text("No Commitments Yet")
-                        .font(.title2.weight(.bold))
-                        .foregroundColor(.white)
+                    Text("No Commitments")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(AppTheme.Colors.textPrimary)
                     
                     Text("Add your regular weekly activities like gym sessions, music lessons, or volunteer work")
-                        .font(.body)
-                        .foregroundColor(.white.opacity(0.7))
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(AppTheme.Colors.textSecondary)
                         .multilineTextAlignment(.center)
+                        .lineSpacing(2)
                         .padding(.horizontal, 32)
                 }
                 
@@ -149,22 +186,24 @@ private extension ExtraCommitmentsView {
                     editingCommitment = nil
                     showingAddSheet = true
                 }) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 20))
-                        Text("Add Your First Commitment")
-                            .font(.headline.weight(.semibold))
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(AppTheme.Colors.primary)
-                            .shadow(color: AppTheme.Colors.primary.opacity(0.3), radius: 6, y: 3)
-                    )
+                    Text("Add Commitment")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [AppTheme.Colors.accent, AppTheme.Colors.accent.opacity(0.8)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .shadow(color: AppTheme.Colors.accent.opacity(0.3), radius: 8, y: 4)
+                        )
                 }
-                .padding(.horizontal, 48)
+                .padding(.horizontal, 32)
             }
             
             Spacer()
@@ -192,7 +231,7 @@ private extension ExtraCommitmentsView {
                     )
                     .opacity(animateContent ? 1.0 : 0)
                     .offset(y: animateContent ? 0 : 20)
-                    .animation(.easeOut(duration: 0.6).delay(0.3 + Double(index) * 0.1), value: animateContent)
+                    .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.2 + Double(index) * 0.1), value: animateContent)
                 }
                 
                 Button(action: {
@@ -219,6 +258,9 @@ private extension ExtraCommitmentsView {
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 8)
+                .opacity(animateContent ? 1.0 : 0)
+                .offset(y: animateContent ? 0 : 20)
+                .animation(.easeOut(duration: 0.6).delay(0.3 + Double(user.recurringCommitments.count) * 0.1), value: animateContent)
                 
                 Rectangle()
                     .fill(Color.clear)

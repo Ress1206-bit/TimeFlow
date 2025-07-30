@@ -31,11 +31,11 @@ struct GoalsDisplayView: View {
     
     var body: some View {
         ZStack {
-            // Professional dark background
+            // Professional background gradient
             LinearGradient(
                 colors: [
                     AppTheme.Colors.background,
-                    AppTheme.Colors.secondary.opacity(0.2),
+                    AppTheme.Colors.secondary.opacity(0.3),
                     AppTheme.Colors.background
                 ],
                 startPoint: .topLeading,
@@ -43,12 +43,11 @@ struct GoalsDisplayView: View {
             )
             .ignoresSafeArea()
             
-            NavigationStack {
+            VStack(spacing: 0) {
+                headerSection
+                
                 ScrollView {
                     VStack(spacing: 28) {
-                        // Header with overview
-                        headerSection
-                        
                         // Weekly Progress Overview
                         if !activeGoals.isEmpty {
                             weeklyProgressSection
@@ -73,17 +72,13 @@ struct GoalsDisplayView: View {
                 .opacity(animateContent ? 1.0 : 0)
                 .offset(y: animateContent ? 0 : 20)
                 .animation(.easeOut(duration: 0.8), value: animateContent)
-                .navigationTitle("Goals")
-                .navigationBarTitleDisplayMode(.automatic)
-                .preferredColorScheme(.dark)
-            }
-            
-            // Place tab bar at bottom
-            VStack {
+                
                 Spacer()
+                
                 TabBarView(selectedTab: $selectedTab)
             }
         }
+        .navigationBarHidden(true)
         .sheet(isPresented: $showEditSheet) {
             GoalEditSheet(
                 existing: $editingGoal,
@@ -104,7 +99,7 @@ struct GoalsDisplayView: View {
             }
         }
         .onAppear {
-            withAnimation {
+            withAnimation(.easeOut(duration: 0.6)) {
                 animateContent = true
             }
         }
@@ -115,15 +110,15 @@ struct GoalsDisplayView: View {
 private extension GoalsDisplayView {
     
     var headerSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 0) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Your Goals")
-                        .font(.title2.weight(.bold))
+                    Text("Goals")
+                        .font(.system(size: 32, weight: .bold))
                         .foregroundColor(AppTheme.Colors.textPrimary)
                     
                     Text(headerSubtitle)
-                        .font(.subheadline)
+                        .font(.system(size: 16, weight: .medium))
                         .foregroundColor(AppTheme.Colors.textSecondary)
                 }
                 
@@ -131,19 +126,30 @@ private extension GoalsDisplayView {
                 
                 Button(action: addNewGoal) {
                     Image(systemName: "plus")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(AppTheme.Colors.primary)
-                        .frame(width: 44, height: 44)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 36, height: 36)
                         .background(
                             Circle()
-                                .fill(AppTheme.Colors.primary.opacity(0.15))
+                                .fill(AppTheme.Colors.accent)
+                                .shadow(color: AppTheme.Colors.accent.opacity(0.3), radius: 4, y: 2)
                         )
                 }
             }
+            .padding(.horizontal, 24)
+            .padding(.top, 16)
+            .padding(.bottom, 24)
+            
+            // Subtle divider
+            Rectangle()
+                .fill(AppTheme.Colors.overlay.opacity(0.1))
+                .frame(height: 1)
+                .padding(.horizontal, 24)
         }
-        .scaleEffect(animateContent ? 1.0 : 0.8)
+        .background(AppTheme.Colors.background)
         .opacity(animateContent ? 1.0 : 0)
-        .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1), value: animateContent)
+        .offset(y: animateContent ? 0 : -20)
+        .animation(.easeOut(duration: 0.6).delay(0.1), value: animateContent)
     }
     
     private var headerSubtitle: String {
@@ -234,55 +240,64 @@ private extension GoalsDisplayView {
     }
     
     var emptyGoalsView: some View {
-        VStack(spacing: 20) {
-            Circle()
-                .fill(AppTheme.Colors.primary.opacity(0.15))
-                .frame(width: 80, height: 80)
-                .overlay(
-                    Image(systemName: "target")
-                        .font(.system(size: 32, weight: .medium))
-                        .foregroundColor(AppTheme.Colors.primary)
-                )
+        VStack(spacing: 40) {
+            Spacer()
             
-            VStack(spacing: 8) {
-                Text("No Goals Yet")
-                    .font(.title2.weight(.semibold))
-                    .foregroundColor(AppTheme.Colors.textPrimary)
+            VStack(spacing: 24) {
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                AppTheme.Colors.accent.opacity(0.1),
+                                AppTheme.Colors.accent.opacity(0.05)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 80, height: 80)
+                    .overlay(
+                        Image(systemName: "target")
+                            .font(.system(size: 32, weight: .light))
+                            .foregroundColor(AppTheme.Colors.accent)
+                    )
                 
-                Text("Set your first goal to start building better habits and achieving your aspirations.")
-                    .font(.subheadline)
-                    .foregroundColor(AppTheme.Colors.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
+                VStack(spacing: 12) {
+                    Text("No Goals")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(AppTheme.Colors.textPrimary)
+                    
+                    Text("Start by adding your goals to build better habits and achieve your aspirations")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(AppTheme.Colors.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(2)
+                        .padding(.horizontal, 32)
+                }
+                
+                Button(action: addNewGoal) {
+                    Text("Add Goal")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [AppTheme.Colors.accent, AppTheme.Colors.accent.opacity(0.8)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .shadow(color: AppTheme.Colors.accent.opacity(0.3), radius: 8, y: 4)
+                        )
+                }
+                .padding(.horizontal, 32)
             }
             
-            Button(action: addNewGoal) {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 16, weight: .semibold))
-                    Text("Create Your First Goal")
-                        .font(.headline.weight(.semibold))
-                }
-                .foregroundColor(.white)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(AppTheme.Colors.primary)
-                        .shadow(color: AppTheme.Colors.primary.opacity(0.3), radius: 8, y: 4)
-                )
-            }
+            Spacer()
         }
-        .padding(.vertical, 40)
-        .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(AppTheme.Colors.cardBackground.opacity(0.6))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(AppTheme.Colors.overlay.opacity(0.3), lineWidth: 1)
-                )
-        )
     }
 }
 

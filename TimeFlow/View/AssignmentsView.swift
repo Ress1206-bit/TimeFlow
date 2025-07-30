@@ -23,6 +23,7 @@ struct AssignmentsView: View {
     @State private var showingCloseButton = false
     @State private var filterCompleted: CompletionFilter = .all
     @State private var sortOption: SortOption = .dueDate
+    @State private var animateContent = false
     
     // Animation namespace
     @Namespace private var tabAnimation
@@ -135,16 +136,18 @@ struct AssignmentsView: View {
         }
         .onAppear {
             loadData()
+            withAnimation(.easeOut(duration: 0.6)) {
+                animateContent = true
+            }
         }
     }
     
     // MARK: - Header View
     private var headerView: some View {
         VStack(spacing: 0) {
-            // Top header with title
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Assignments & Tests")
+                    Text(selectedTab.rawValue)
                         .font(.system(size: 32, weight: .bold))
                         .foregroundColor(AppTheme.Colors.textPrimary)
                     
@@ -154,184 +157,60 @@ struct AssignmentsView: View {
                 }
                 
                 Spacer()
+                
+                HStack(spacing: 8) {
+                    // Tab switcher button
+                    Button {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            selectedTab = selectedTab == .assignments ? .tests : .assignments
+                        }
+                    } label: {
+                        Image(systemName: selectedTab == .assignments ? "graduationcap.fill" : "doc.text.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(AppTheme.Colors.textSecondary)
+                            .frame(width: 36, height: 36)
+                            .background(
+                                Circle()
+                                    .fill(AppTheme.Colors.background.opacity(0.5))
+                            )
+                    }
+                    
+                    // Add button
+                    Button {
+                        if selectedTab == .assignments {
+                            selectedAssignment = nil
+                            showingAssignmentEditor = true
+                        } else {
+                            selectedTest = nil
+                            showingTestEditor = true
+                        }
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 36, height: 36)
+                            .background(
+                                Circle()
+                                    .fill(AppTheme.Colors.accent)
+                                    .shadow(color: AppTheme.Colors.accent.opacity(0.3), radius: 4, y: 2)
+                            )
+                    }
+                }
             }
             .padding(.horizontal, 24)
             .padding(.top, 16)
             .padding(.bottom, 24)
             
-            // Tab selector
-            HStack(spacing: 0) {
-                ForEach(AssignmentTab.allCases, id: \.self) { tab in
-                    Button {
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                            selectedTab = tab
-                        }
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: tab.icon)
-                                .font(.system(size: 14, weight: .semibold))
-                            
-                            Text(tab.rawValue)
-                                .font(.system(size: 15, weight: .semibold))
-                            
-                            // Count badge
-                            Text("\(tab == .assignments ? (contentModel.user?.assignments.count ?? 0) : (contentModel.user?.tests.count ?? 0))")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(selectedTab == tab ? .white : AppTheme.Colors.textTertiary)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(
-                                    Capsule()
-                                        .fill(selectedTab == tab ? AppTheme.Colors.accent.opacity(0.3) : AppTheme.Colors.overlay.opacity(0.2))
-                                )
-                        }
-                        .foregroundColor(selectedTab == tab ? AppTheme.Colors.accent : AppTheme.Colors.textSecondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(selectedTab == tab ? AppTheme.Colors.accent.opacity(0.1) : Color.clear)
-                                .matchedGeometryEffect(id: "selectedTab", in: tabAnimation)
-                        )
-                    }
-                }
-            }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 16)
-            
-            // Add button
-            Button {
-                if selectedTab == .assignments {
-                    selectedAssignment = nil
-                    showingAssignmentEditor = true
-                } else {
-                    selectedTest = nil
-                    showingTestEditor = true
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 14, weight: .semibold))
-                    Text("Add \(selectedTab.rawValue.dropLast())")
-                        .font(.system(size: 15, weight: .semibold))
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 48)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(
-                            LinearGradient(
-                                colors: [AppTheme.Colors.accent, AppTheme.Colors.accent.opacity(0.8)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .shadow(color: AppTheme.Colors.accent.opacity(0.3), radius: 8, y: 4)
-                )
-            }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 16)
-            
-            // Filters section
-            filtersSection
-            
-            // Divider
+            // Subtle divider
             Rectangle()
                 .fill(AppTheme.Colors.overlay.opacity(0.1))
                 .frame(height: 1)
                 .padding(.horizontal, 24)
         }
         .background(AppTheme.Colors.background)
-    }
-    
-    // MARK: - Filters Section
-    private var filtersSection: some View {
-        VStack(spacing: 16) {
-            // Completion filter
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Status")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(AppTheme.Colors.textPrimary)
-                    
-                    Spacer()
-                }
-                
-                HStack(spacing: 8) {
-                    ForEach(CompletionFilter.allCases, id: \.self) { filter in
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                filterCompleted = filter
-                            }
-                        } label: {
-                            Text(filter.rawValue)
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(filterCompleted == filter ? .white : AppTheme.Colors.textSecondary)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(
-                                    Capsule()
-                                        .fill(filterCompleted == filter ? AppTheme.Colors.accent : AppTheme.Colors.cardBackground)
-                                        .shadow(color: .black.opacity(0.03), radius: 2, y: 1)
-                                )
-                        }
-                    }
-                    
-                    Spacer()
-                }
-            }
-            
-            // Sort options
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Sort By")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(AppTheme.Colors.textPrimary)
-                    
-                    Spacer()
-                }
-                
-                HStack(spacing: 8) {
-                    ForEach(SortOption.allCases, id: \.self) { option in
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                sortOption = option
-                            }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: option.icon)
-                                    .font(.system(size: 10, weight: .medium))
-                                Text(option.rawValue)
-                                    .font(.system(size: 12, weight: .semibold))
-                            }
-                            .foregroundColor(sortOption == option ? .white : AppTheme.Colors.textSecondary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(
-                                Capsule()
-                                    .fill(sortOption == option ? AppTheme.Colors.accent : AppTheme.Colors.cardBackground)
-                                    .shadow(color: .black.opacity(0.03), radius: 2, y: 1)
-                            )
-                        }
-                    }
-                    
-                    Spacer()
-                }
-            }
-        }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(AppTheme.Colors.cardBackground.opacity(0.5))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(AppTheme.Colors.overlay.opacity(0.1), lineWidth: 1)
-                )
-        )
-        .padding(.horizontal, 24)
-        .padding(.bottom, 16)
+        .opacity(animateContent ? 1.0 : 0)
+        .offset(y: animateContent ? 0 : -20)
+        .animation(.easeOut(duration: 0.6).delay(0.1), value: animateContent)
     }
     
     // MARK: - Empty State View
@@ -360,7 +239,7 @@ struct AssignmentsView: View {
                 
                 VStack(spacing: 12) {
                     Text("No \(selectedTab.rawValue)")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .font(.system(size: 28, weight: .bold))
                         .foregroundColor(AppTheme.Colors.textPrimary)
                     
                     Text("Start by adding your \(selectedTab.rawValue.lowercased()) to keep track of deadlines and study time")
@@ -402,6 +281,9 @@ struct AssignmentsView: View {
             
             Spacer()
         }
+        .opacity(animateContent ? 1.0 : 0)
+        .scaleEffect(animateContent ? 1.0 : 0.9)
+        .animation(.easeOut(duration: 0.8).delay(0.2), value: animateContent)
     }
     
     // MARK: - Content View
@@ -427,249 +309,309 @@ struct AssignmentsView: View {
     // MARK: - Assignment Row
     private func assignmentRow(_ assignment: Assignment) -> some View {
         HStack(spacing: 16) {
-            // Completion indicator
-            Button {
-                toggleAssignmentCompletion(assignment)
-            } label: {
-                Image(systemName: assignment.completed ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(assignment.completed ? .green : AppTheme.Colors.textTertiary)
+            // Subject icon (if class exists)
+            if !assignment.classTitle.isEmpty {
+                Image(systemName: subjectIcon(for: assignment.classTitle))
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(subjectColor(for: assignment.classTitle))
+                    .frame(width: 24, height: 24)
             }
             
-            // Content
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
+            // Main content
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top, spacing: 12) {
+                    // Title and class
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(assignment.assignmentTitle)
-                            .font(.system(size: 18, weight: .bold))
+                            .font(.system(size: 19, weight: .bold))
                             .foregroundColor(assignment.completed ? AppTheme.Colors.textSecondary : AppTheme.Colors.textPrimary)
                             .strikethrough(assignment.completed)
+                            .lineLimit(2)
                         
-                        Text(assignment.classTitle)
-                            .font(.system(size: 15, weight: .medium))
+                        if !assignment.classTitle.isEmpty {
+                            Text(assignment.classTitle)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(AppTheme.Colors.textSecondary)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // 3-dot menu with completion toggle
+                    Menu {
+                        Button {
+                            toggleAssignmentCompletion(assignment)
+                        } label: {
+                            Label(assignment.completed ? "Mark Incomplete" : "Mark Complete", 
+                                  systemImage: assignment.completed ? "xmark.circle" : "checkmark.circle")
+                        }
+                        
+                        Divider()
+                        
+                        Button {
+                            selectedAssignment = assignment
+                            showingAssignmentEditor = true
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                        
+                        Button(role: .destructive) {
+                            itemToDelete = .assignment(assignment)
+                            showingDeleteConfirmation = true
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(AppTheme.Colors.textSecondary)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                Circle()
+                                    .fill(AppTheme.Colors.background.opacity(0.5))
+                            )
+                    }
+                }
+                
+                // Bottom row with time and due date
+                HStack(spacing: 12) {
+                    // Time needed
+                    HStack(spacing: 6) {
+                        Image(systemName: "clock")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.blue)
+                        Text("\(assignment.estimatedMinutesLeftToComplete)m needed")
+                            .font(.system(size: 13, weight: .medium))
                             .foregroundColor(AppTheme.Colors.textSecondary)
                     }
                     
                     Spacer()
                     
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text(assignment.dueDate.formatted(date: .abbreviated, time: .omitted))
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(dueDateColor(assignment.dueDate))
-                        
-                        Text(timeUntilDue(assignment.dueDate))
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(AppTheme.Colors.textTertiary)
-                    }
-                }
-                
-                HStack(spacing: 12) {
-                    // Time remaining indicator
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock")
-                            .font(.system(size: 10))
-                        Text("\(assignment.estimatedMinutesLeftToComplete)m left")
-                            .font(.system(size: 11, weight: .medium))
-                    }
-                    .foregroundColor(AppTheme.Colors.textTertiary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(AppTheme.Colors.overlay.opacity(0.1))
-                    )
-                    
-                    Spacer()
-                    
-                    // Action buttons
-                    HStack(spacing: 8) {
-                        if assignment.completed {
-                            Button {
-                                itemToDelete = .assignment(assignment)
-                                showingDeleteConfirmation = true
-                            } label: {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "trash")
-                                        .font(.system(size: 10, weight: .semibold))
-                                    Text("Remove")
-                                        .font(.system(size: 11, weight: .semibold))
-                                }
-                                .foregroundColor(.red)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(
-                                    Capsule()
-                                        .fill(Color.red.opacity(0.1))
-                                )
-                            }
-                        } else {
-                            Button {
-                                selectedAssignment = assignment
-                                showingAssignmentEditor = true
-                            } label: {
-                                Image(systemName: "pencil")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(AppTheme.Colors.accent)
-                                    .frame(width: 28, height: 28)
-                                    .background(
-                                        Circle()
-                                            .fill(AppTheme.Colors.accent.opacity(0.1))
-                                    )
-                            }
-                            
-                            Button {
-                                itemToDelete = .assignment(assignment)
-                                showingDeleteConfirmation = true
-                            } label: {
-                                Image(systemName: "trash")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(.red)
-                                    .frame(width: 28, height: 28)
-                                    .background(
-                                        Circle()
-                                            .fill(Color.red.opacity(0.1))
-                                    )
-                            }
-                        }
-                    }
+                    // Due date
+                    Text(formatDueDate(assignment.dueDate))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(dueDateUrgencyColor(assignment.dueDate))
                 }
             }
         }
-        .padding(16)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 16)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(AppTheme.Colors.cardBackground)
-                .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(
+                            assignment.completed ? 
+                                Color.green.opacity(0.3) : 
+                                AppTheme.Colors.overlay.opacity(0.15),
+                            lineWidth: 1
+                        )
+                )
+                .shadow(color: .black.opacity(0.03), radius: 6, y: 3)
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(assignment.completed ? Color.green.opacity(0.3) : AppTheme.Colors.overlay.opacity(0.2), lineWidth: 1)
-        )
-        .opacity(assignment.completed ? 0.7 : 1.0)
+        .opacity(assignment.completed ? 0.75 : 1.0)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: assignment.completed)
     }
     
-    // MARK: - Test Row
+    // MARK: - Test Row  
     private func testRow(_ test: Test) -> some View {
         HStack(spacing: 16) {
-            // Completion indicator
-            Button {
-                toggleTestPreparation(test)
-            } label: {
-                Image(systemName: test.prepared ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(test.prepared ? .blue : AppTheme.Colors.textTertiary)
+            // Subject icon (if class exists)
+            if !test.classTitle.isEmpty {
+                Image(systemName: subjectIcon(for: test.classTitle))
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(subjectColor(for: test.classTitle))
+                    .frame(width: 24, height: 24)
             }
             
-            // Content
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
+            // Main content
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top, spacing: 12) {
+                    // Title and class
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(test.testTitle)
-                            .font(.system(size: 18, weight: .bold))
+                            .font(.system(size: 19, weight: .bold))
                             .foregroundColor(test.prepared ? AppTheme.Colors.textSecondary : AppTheme.Colors.textPrimary)
                             .strikethrough(test.prepared)
+                            .lineLimit(2)
                         
-                        Text(test.classTitle)
-                            .font(.system(size: 15, weight: .medium))
+                        if !test.classTitle.isEmpty {
+                            Text(test.classTitle)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(AppTheme.Colors.textSecondary)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // 3-dot menu with completion toggle
+                    Menu {
+                        Button {
+                            toggleTestPreparation(test)
+                        } label: {
+                            Label(test.prepared ? "Mark Unprepared" : "Mark Prepared", 
+                                  systemImage: test.prepared ? "xmark.circle" : "checkmark.circle")
+                        }
+                        
+                        Divider()
+                        
+                        Button {
+                            selectedTest = test
+                            showingTestEditor = true
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                        
+                        Button(role: .destructive) {
+                            itemToDelete = .test(test)
+                            showingDeleteConfirmation = true
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(AppTheme.Colors.textSecondary)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                Circle()
+                                    .fill(AppTheme.Colors.background.opacity(0.5))
+                            )
+                    }
+                }
+                
+                // Bottom row with time and test date
+                HStack(spacing: 12) {
+                    // Study time
+                    HStack(spacing: 6) {
+                        Image(systemName: "book")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.green)
+                        Text("\(test.studyMinutesLeft)m study needed")
+                            .font(.system(size: 13, weight: .medium))
                             .foregroundColor(AppTheme.Colors.textSecondary)
                     }
                     
                     Spacer()
                     
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text(test.date.formatted(date: .abbreviated, time: .shortened))
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(dueDateColor(test.date))
-                        
-                        Text(timeUntilDue(test.date))
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(AppTheme.Colors.textTertiary)
-                    }
-                }
-                
-                HStack(spacing: 12) {
-                    // Study time remaining indicator
-                    HStack(spacing: 4) {
-                        Image(systemName: "book")
-                            .font(.system(size: 10))
-                        Text("\(test.studyMinutesLeft)m study left")
-                            .font(.system(size: 11, weight: .medium))
-                    }
-                    .foregroundColor(AppTheme.Colors.textTertiary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(AppTheme.Colors.overlay.opacity(0.1))
-                    )
-                    
-                    Spacer()
-                    
-                    // Action buttons
-                    HStack(spacing: 8) {
-                        if test.prepared {
-                            Button {
-                                itemToDelete = .test(test)
-                                showingDeleteConfirmation = true
-                            } label: {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "trash")
-                                        .font(.system(size: 10, weight: .semibold))
-                                    Text("Remove")
-                                        .font(.system(size: 11, weight: .semibold))
-                                }
-                                .foregroundColor(.red)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(
-                                    Capsule()
-                                        .fill(Color.red.opacity(0.1))
-                                )
-                            }
-                        } else {
-                            Button {
-                                selectedTest = test
-                                showingTestEditor = true
-                            } label: {
-                                Image(systemName: "pencil")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(AppTheme.Colors.accent)
-                                    .frame(width: 28, height: 28)
-                                    .background(
-                                        Circle()
-                                            .fill(AppTheme.Colors.accent.opacity(0.1))
-                                    )
-                            }
-                            
-                            Button {
-                                itemToDelete = .test(test)
-                                showingDeleteConfirmation = true
-                            } label: {
-                                Image(systemName: "trash")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(.red)
-                                    .frame(width: 28, height: 28)
-                                    .background(
-                                        Circle()
-                                            .fill(Color.red.opacity(0.1))
-                                    )
-                            }
-                        }
-                    }
+                    // Test date
+                    Text(formatTestDate(test.date))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(dueDateUrgencyColor(test.date))
                 }
             }
         }
-        .padding(16)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 16)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(AppTheme.Colors.cardBackground)
-                .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(
+                            test.prepared ? 
+                                Color.blue.opacity(0.3) : 
+                                AppTheme.Colors.overlay.opacity(0.15),
+                            lineWidth: 1
+                        )
+                )
+                .shadow(color: .black.opacity(0.03), radius: 6, y: 3)
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(test.prepared ? Color.blue.opacity(0.3) : AppTheme.Colors.overlay.opacity(0.2), lineWidth: 1)
-        )
-        .opacity(test.prepared ? 0.7 : 1.0)
+        .opacity(test.prepared ? 0.75 : 1.0)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: test.prepared)
+    }
+    
+    // MARK: - Helper Functions for Enhanced Cards
+    private func subjectIcon(for className: String) -> String {
+        let lowercased = className.lowercased()
+        if lowercased.contains("science") || lowercased.contains("chemistry") || lowercased.contains("physics") {
+            return "atom"
+        } else if lowercased.contains("english") || lowercased.contains("literature") || lowercased.contains("writing") {
+            return "book"
+        } else if lowercased.contains("history") || lowercased.contains("social") {
+            return "globe"
+        } else if lowercased.contains("art") || lowercased.contains("design") {
+            return "paintbrush"
+        } else if lowercased.contains("music") {
+            return "music.note"
+        } else if lowercased.contains("computer") || lowercased.contains("programming") || lowercased.contains("coding") {
+            return "laptopcomputer"
+        } else {
+            return "book.fill"
+        }
+    }
+    
+    private func subjectColor(for className: String) -> Color {
+        let lowercased = className.lowercased()
+        if lowercased.contains("science") || lowercased.contains("chemistry") || lowercased.contains("physics") {
+            return .green
+        } else if lowercased.contains("english") || lowercased.contains("literature") || lowercased.contains("writing") {
+            return .orange
+        } else if lowercased.contains("history") || lowercased.contains("social") {
+            return .brown
+        } else if lowercased.contains("art") || lowercased.contains("design") {
+            return .purple
+        } else if lowercased.contains("music") {
+            return .pink
+        } else if lowercased.contains("computer") || lowercased.contains("programming") || lowercased.contains("coding") {
+            return .cyan
+        } else {
+            return AppTheme.Colors.accent
+        }
+    }
+    
+    private func formatDueDate(_ date: Date) -> String {
+        let now = Date()
+        let timeInterval = date.timeIntervalSince(now)
+        let daysUntilDue = Int(timeInterval / (24 * 60 * 60))
+        
+        let dateString = date.formatted(date: .abbreviated, time: .omitted)
+        
+        if timeInterval < 0 {
+            let daysOverdue = abs(daysUntilDue)
+            return daysOverdue == 0 ? "Overdue" : "\(dateString) (\(daysOverdue)d overdue)"
+        } else if daysUntilDue == 0 {
+            return "Today"
+        } else if daysUntilDue == 1 {
+            return "Tomorrow"
+        } else {
+            return "\(dateString) (\(daysUntilDue)d)"
+        }
+    }
+    
+    private func formatTestDate(_ date: Date) -> String {
+        let now = Date()
+        let timeInterval = date.timeIntervalSince(now)
+        let daysUntilTest = Int(timeInterval / (24 * 60 * 60))
+        
+        let dateString = date.formatted(date: .abbreviated, time: .omitted)
+        
+        if timeInterval < 0 {
+            return "\(dateString) (past)"
+        } else if daysUntilTest == 0 {
+            return "Today"
+        } else if daysUntilTest == 1 {
+            return "Tomorrow"
+        } else {
+            return "\(dateString) (\(daysUntilTest)d)"
+        }
+    }
+    
+    private func dueDateUrgencyColor(_ date: Date) -> Color {
+        let now = Date()
+        let timeInterval = date.timeIntervalSince(now)
+        let daysUntilDue = timeInterval / (24 * 60 * 60)
+        
+        if daysUntilDue < 0 {
+            return .red // Overdue
+        } else if daysUntilDue < 3 {
+            return .red // < 3 days
+        } else if daysUntilDue < 7 {
+            return .orange // 3-7 days
+        } else {
+            return .green // > 7 days
+        }
     }
     
     // MARK: - Computed Properties
@@ -809,47 +751,16 @@ struct AssignmentsView: View {
             date: Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
         )
     }
-    
-    private func dueDateColor(_ date: Date) -> Color {
-        let now = Date()
-        let timeInterval = date.timeIntervalSince(now)
-        let daysUntilDue = timeInterval / (24 * 60 * 60)
-        
-        if daysUntilDue < 0 {
-            return .red // Overdue
-        } else if daysUntilDue < 1 {
-            return .orange // Due today
-        } else if daysUntilDue < 3 {
-            return .yellow // Due soon
-        } else {
-            return AppTheme.Colors.textSecondary // Normal
-        }
-    }
-    
-    private func timeUntilDue(_ date: Date) -> String {
-        let now = Date()
-        let timeInterval = date.timeIntervalSince(now)
-        let daysUntilDue = Int(timeInterval / (24 * 60 * 60))
-        
-        if timeInterval < 0 {
-            let daysOverdue = abs(daysUntilDue)
-            return daysOverdue == 0 ? "Overdue" : "\(daysOverdue)d overdue"
-        } else if daysUntilDue == 0 {
-            return "Due today"
-        } else if daysUntilDue == 1 {
-            return "Due tomorrow"
-        } else {
-            return "Due in \(daysUntilDue)d"
-        }
-    }
 }
 
 // MARK: - Assignment Editor View
 struct AssignmentEditorView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(ContentModel.self) var contentModel
     
     @State private var assignment: Assignment
     @State private var dueDate: Date
+    @State private var showingClassManager = false
     
     let onSave: (Assignment) -> Void
     let onDelete: ((Assignment) -> Void)?
@@ -864,68 +775,265 @@ struct AssignmentEditorView: View {
         self.isNewAssignment = assignment.assignmentTitle.isEmpty
     }
     
+    var userClasses: [String] {
+        contentModel.user?.classes ?? []
+    }
+    
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Assignment Details") {
-                    TextField("Assignment Title", text: $assignment.assignmentTitle)
-                        .font(.system(size: 16, weight: .medium))
-                    
-                    TextField("Class/Subject", text: $assignment.classTitle)
-                        .font(.system(size: 16, weight: .medium))
-                }
+            ZStack {
+                AppTheme.Colors.background.ignoresSafeArea()
                 
-                Section("Due Date") {
-                    DatePicker("Due Date", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
-                }
-                
-                Section("Time Estimation") {
+                VStack(spacing: 0) {
+                    // Header
                     HStack {
-                        Text("Estimated Time Left")
-                        Spacer()
-                        HStack(spacing: 4) {
-                            TextField("60", value: $assignment.estimatedMinutesLeftToComplete, format: .number)
-                                .keyboardType(.numberPad)
-                                .multilineTextAlignment(.trailing)
-                                .frame(width: 60)
-                            Text("minutes")
-                                .foregroundColor(AppTheme.Colors.textSecondary)
-                        }
-                    }
-                }
-                
-                Section("Additional Information") {
-                    TextField("Extra preferences or notes...", text: $assignment.extraPreferenceInfo, axis: .vertical)
-                        .lineLimit(3...6)
-                }
-                
-                if !isNewAssignment, let onDelete = onDelete {
-                    Section {
-                        Button("Delete Assignment") {
-                            onDelete(assignment)
+                        Button("Cancel") {
                             dismiss()
                         }
-                        .foregroundColor(.red)
-                        .frame(maxWidth: .infinity, alignment: .center)
+                        .foregroundColor(AppTheme.Colors.textSecondary)
+                        
+                        Spacer()
+                        
+                        Text(isNewAssignment ? "New Assignment" : "Edit Assignment")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(AppTheme.Colors.textPrimary)
+                        
+                        Spacer()
+                        
+                        Button("Save") {
+                            saveAssignment()
+                        }
+                        .foregroundColor(AppTheme.Colors.accent)
+                        .fontWeight(.semibold)
+                        .disabled(assignment.assignmentTitle.isEmpty || assignment.classTitle.isEmpty)
+                        .opacity(assignment.assignmentTitle.isEmpty || assignment.classTitle.isEmpty ? 0.6 : 1.0)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 16)
+                    .padding(.bottom, 24)
+                    
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            // Assignment title
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Assignment Title")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(AppTheme.Colors.textPrimary)
+                                
+                                TextField("Enter assignment title", text: $assignment.assignmentTitle)
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(AppTheme.Colors.textPrimary)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 14)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(AppTheme.Colors.cardBackground)
+                                            .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+                                    )
+                            }
+                            
+                            // Class selection
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Class")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(AppTheme.Colors.textPrimary)
+                                
+                                HStack(spacing: 12) {
+                                    if !userClasses.isEmpty {
+                                        Menu {
+                                            Button("None") {
+                                                assignment.classTitle = ""
+                                            }
+                                            
+                                            Divider()
+                                            
+                                            ForEach(userClasses, id: \.self) { className in
+                                                Button(className) {
+                                                    assignment.classTitle = className
+                                                }
+                                            }
+                                        } label: {
+                                            HStack(spacing: 12) {
+                                                Image(systemName: "building.2")
+                                                    .font(.system(size: 16, weight: .medium))
+                                                    .foregroundColor(AppTheme.Colors.textSecondary)
+                                                    .frame(width: 20)
+                                                
+                                                Text(assignment.classTitle.isEmpty ? "Select class" : assignment.classTitle)
+                                                    .font(.system(size: 16, weight: .medium))
+                                                    .foregroundColor(assignment.classTitle.isEmpty ? AppTheme.Colors.textTertiary : AppTheme.Colors.textPrimary)
+                                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                                
+                                                Image(systemName: "chevron.down")
+                                                    .font(.system(size: 12, weight: .medium))
+                                                    .foregroundColor(AppTheme.Colors.textSecondary)
+                                            }
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 14)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .fill(AppTheme.Colors.cardBackground)
+                                                    .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+                                            )
+                                        }
+                                    } else {
+                                        TextField("Enter class name", text: $assignment.classTitle)
+                                            .font(.system(size: 16, weight: .medium))
+                                            .foregroundColor(AppTheme.Colors.textPrimary)
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 14)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .fill(AppTheme.Colors.cardBackground)
+                                                    .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+                                            )
+                                    }
+                                    
+                                    Button {
+                                        showingClassManager = true
+                                    } label: {
+                                        Image(systemName: userClasses.isEmpty ? "plus.circle" : "gear")
+                                            .font(.system(size: 16, weight: .medium))
+                                            .foregroundColor(AppTheme.Colors.accent)
+                                            .frame(width: 44, height: 48)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .fill(AppTheme.Colors.cardBackground)
+                                                    .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+                                            )
+                                    }
+                                }
+                            }
+                            
+                            // Due date
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Due Date")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(AppTheme.Colors.textPrimary)
+                                
+                                DatePicker("Due Date", selection: $dueDate, displayedComponents: [.date, .hourAndMinute])
+                                    .datePickerStyle(GraphicalDatePickerStyle())
+                                    .frame(maxHeight: 400)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 14)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(AppTheme.Colors.cardBackground)
+                                            .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+                                    )
+                            }
+                            
+                            // Time estimation
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Estimated Time Needed")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(AppTheme.Colors.textPrimary)
+                                
+                                HStack {
+                                    Button("-") {
+                                        if assignment.estimatedMinutesLeftToComplete > 15 {
+                                            assignment.estimatedMinutesLeftToComplete = max(15, assignment.estimatedMinutesLeftToComplete - 15)
+                                        }
+                                    }
+                                    .foregroundColor(AppTheme.Colors.accent)
+                                    .frame(width: 36, height: 36)
+                                    .background(Circle().fill(AppTheme.Colors.accent.opacity(0.1)))
+                                    
+                                    Spacer()
+                                    
+                                    VStack(spacing: 2) {
+                                        Text("\(assignment.estimatedMinutesLeftToComplete)")
+                                            .font(.system(size: 24, weight: .bold))
+                                            .foregroundColor(AppTheme.Colors.textPrimary)
+                                        Text("minutes")
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundColor(AppTheme.Colors.textSecondary)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Button("+") {
+                                        if assignment.estimatedMinutesLeftToComplete < 480 {
+                                            assignment.estimatedMinutesLeftToComplete = min(480, assignment.estimatedMinutesLeftToComplete + 15)
+                                        }
+                                    }
+                                    .foregroundColor(AppTheme.Colors.accent)
+                                    .frame(width: 36, height: 36)
+                                    .background(Circle().fill(AppTheme.Colors.accent.opacity(0.1)))
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 14)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(AppTheme.Colors.cardBackground)
+                                        .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+                                )
+                            }
+                            
+                            // AI preferences
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("AI Scheduling Preferences (Optional)")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(AppTheme.Colors.textPrimary)
+                                
+                                ZStack(alignment: .topLeading) {
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(AppTheme.Colors.cardBackground)
+                                        .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+                                        .frame(height: 100)
+                                    
+                                    if assignment.extraPreferenceInfo.isEmpty {
+                                        Text("Anything the AI should know about scheduling this assignment? (e.g., preferred times, energy levels needed, materials required)")
+                                            .font(.system(size: 16))
+                                            .foregroundColor(AppTheme.Colors.textTertiary)
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 14)
+                                    }
+                                    
+                                    TextEditor(text: $assignment.extraPreferenceInfo)
+                                        .font(.system(size: 16))
+                                        .foregroundColor(AppTheme.Colors.textPrimary)
+                                        .scrollContentBackground(.hidden)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 10)
+                                }
+                            }
+                            
+                            if !isNewAssignment, let onDelete = onDelete {
+                                Button("Delete Assignment") {
+                                    onDelete(assignment)
+                                    dismiss()
+                                }
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.red)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color.red.opacity(0.1))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                                        )
+                                )
+                            }
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 40)
                     }
                 }
             }
-            .navigationTitle(isNewAssignment ? "New Assignment" : "Edit Assignment")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
+            .navigationBarHidden(true)
+            .sheet(isPresented: $showingClassManager) {
+                ClassManagerSheet(classes: Binding(
+                    get: { contentModel.user?.classes ?? [] },
+                    set: { newClasses in
+                        contentModel.user?.classes = newClasses
+                        Task {
+                            try? await contentModel.saveUserInfo()
+                        }
                     }
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        saveAssignment()
-                    }
-                    .fontWeight(.semibold)
-                    .disabled(assignment.assignmentTitle.isEmpty || assignment.classTitle.isEmpty)
-                }
+                ))
             }
         }
     }
@@ -940,9 +1048,11 @@ struct AssignmentEditorView: View {
 // MARK: - Test Editor View
 struct TestEditorView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(ContentModel.self) var contentModel
     
     @State private var test: Test
     @State private var testDate: Date
+    @State private var showingClassManager = false
     
     let onSave: (Test) -> Void
     let onDelete: ((Test) -> Void)?
@@ -957,68 +1067,265 @@ struct TestEditorView: View {
         self.isNewTest = test.testTitle.isEmpty
     }
     
+    var userClasses: [String] {
+        contentModel.user?.classes ?? []
+    }
+    
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Test Details") {
-                    TextField("Test Title", text: $test.testTitle)
-                        .font(.system(size: 16, weight: .medium))
-                    
-                    TextField("Class/Subject", text: $test.classTitle)
-                        .font(.system(size: 16, weight: .medium))
-                }
+            ZStack {
+                AppTheme.Colors.background.ignoresSafeArea()
                 
-                Section("Test Date") {
-                    DatePicker("Test Date", selection: $testDate, displayedComponents: [.date, .hourAndMinute])
-                }
-                
-                Section("Study Time") {
+                VStack(spacing: 0) {
+                    // Header
                     HStack {
-                        Text("Study Time Left")
-                        Spacer()
-                        HStack(spacing: 4) {
-                            TextField("120", value: $test.studyMinutesLeft, format: .number)
-                                .keyboardType(.numberPad)
-                                .multilineTextAlignment(.trailing)
-                                .frame(width: 60)
-                            Text("minutes")
-                                .foregroundColor(AppTheme.Colors.textSecondary)
-                        }
-                    }
-                }
-                
-                Section("Additional Information") {
-                    TextField("Extra preferences or notes...", text: $test.extraPreferenceInfo, axis: .vertical)
-                        .lineLimit(3...6)
-                }
-                
-                if !isNewTest, let onDelete = onDelete {
-                    Section {
-                        Button("Delete Test") {
-                            onDelete(test)
+                        Button("Cancel") {
                             dismiss()
                         }
-                        .foregroundColor(.red)
-                        .frame(maxWidth: .infinity, alignment: .center)
+                        .foregroundColor(AppTheme.Colors.textSecondary)
+                        
+                        Spacer()
+                        
+                        Text(isNewTest ? "New Test" : "Edit Test")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(AppTheme.Colors.textPrimary)
+                        
+                        Spacer()
+                        
+                        Button("Save") {
+                            saveTest()
+                        }
+                        .foregroundColor(AppTheme.Colors.accent)
+                        .fontWeight(.semibold)
+                        .disabled(test.testTitle.isEmpty || test.classTitle.isEmpty)
+                        .opacity(test.testTitle.isEmpty || test.classTitle.isEmpty ? 0.6 : 1.0)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 16)
+                    .padding(.bottom, 24)
+                    
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            // Test title
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Test Title")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(AppTheme.Colors.textPrimary)
+                                
+                                TextField("Enter test title", text: $test.testTitle)
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(AppTheme.Colors.textPrimary)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 14)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(AppTheme.Colors.cardBackground)
+                                            .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+                                    )
+                            }
+                            
+                            // Class selection
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Class")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(AppTheme.Colors.textPrimary)
+                                
+                                HStack(spacing: 12) {
+                                    if !userClasses.isEmpty {
+                                        Menu {
+                                            Button("None") {
+                                                test.classTitle = ""
+                                            }
+                                            
+                                            Divider()
+                                            
+                                            ForEach(userClasses, id: \.self) { className in
+                                                Button(className) {
+                                                    test.classTitle = className
+                                                }
+                                            }
+                                        } label: {
+                                            HStack(spacing: 12) {
+                                                Image(systemName: "building.2")
+                                                    .font(.system(size: 16, weight: .medium))
+                                                    .foregroundColor(AppTheme.Colors.textSecondary)
+                                                    .frame(width: 20)
+                                                
+                                                Text(test.classTitle.isEmpty ? "Select class" : test.classTitle)
+                                                    .font(.system(size: 16, weight: .medium))
+                                                    .foregroundColor(test.classTitle.isEmpty ? AppTheme.Colors.textTertiary : AppTheme.Colors.textPrimary)
+                                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                                
+                                                Image(systemName: "chevron.down")
+                                                    .font(.system(size: 12, weight: .medium))
+                                                    .foregroundColor(AppTheme.Colors.textSecondary)
+                                            }
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 14)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .fill(AppTheme.Colors.cardBackground)
+                                                    .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+                                            )
+                                        }
+                                    } else {
+                                        TextField("Enter class name", text: $test.classTitle)
+                                            .font(.system(size: 16, weight: .medium))
+                                            .foregroundColor(AppTheme.Colors.textPrimary)
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 14)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .fill(AppTheme.Colors.cardBackground)
+                                                    .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+                                            )
+                                    }
+                                    
+                                    Button {
+                                        showingClassManager = true
+                                    } label: {
+                                        Image(systemName: userClasses.isEmpty ? "plus.circle" : "gear")
+                                            .font(.system(size: 16, weight: .medium))
+                                            .foregroundColor(AppTheme.Colors.accent)
+                                            .frame(width: 44, height: 48)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .fill(AppTheme.Colors.cardBackground)
+                                                    .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+                                            )
+                                    }
+                                }
+                            }
+                            
+                            // Test date
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Test Date")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(AppTheme.Colors.textPrimary)
+                                
+                                DatePicker("Test Date", selection: $testDate, displayedComponents: [.date, .hourAndMinute])
+                                    .datePickerStyle(GraphicalDatePickerStyle())
+                                    .frame(maxHeight: 400)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 14)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(AppTheme.Colors.cardBackground)
+                                            .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+                                    )
+                            }
+                            
+                            // Study time
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Study Time Left")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(AppTheme.Colors.textPrimary)
+                                
+                                HStack {
+                                    Button("-") {
+                                        if test.studyMinutesLeft > 15 {
+                                            test.studyMinutesLeft = max(15, test.studyMinutesLeft - 15)
+                                        }
+                                    }
+                                    .foregroundColor(AppTheme.Colors.accent)
+                                    .frame(width: 36, height: 36)
+                                    .background(Circle().fill(AppTheme.Colors.accent.opacity(0.1)))
+                                    
+                                    Spacer()
+                                    
+                                    VStack(spacing: 2) {
+                                        Text("\(test.studyMinutesLeft)")
+                                            .font(.system(size: 24, weight: .bold))
+                                            .foregroundColor(AppTheme.Colors.textPrimary)
+                                        Text("minutes")
+                                            .font(.system(size: 14, weight: .medium))
+                                            .foregroundColor(AppTheme.Colors.textSecondary)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Button("+") {
+                                        if test.studyMinutesLeft < 480 {
+                                            test.studyMinutesLeft = min(480, test.studyMinutesLeft + 15)
+                                        }
+                                    }
+                                    .foregroundColor(AppTheme.Colors.accent)
+                                    .frame(width: 36, height: 36)
+                                    .background(Circle().fill(AppTheme.Colors.accent.opacity(0.1)))
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 14)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(AppTheme.Colors.cardBackground)
+                                        .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+                                )
+                            }
+                            
+                            // Additional preferences
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("AI Scheduling Preferences (Optional)")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(AppTheme.Colors.textPrimary)
+                                
+                                ZStack(alignment: .topLeading) {
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(AppTheme.Colors.cardBackground)
+                                        .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+                                        .frame(height: 100)
+                                    
+                                    if test.extraPreferenceInfo.isEmpty {
+                                        Text("Anything the AI should know about scheduling study time for this test? (e.g., preferred study times, difficulty level, review materials needed)")
+                                            .font(.system(size: 16))
+                                            .foregroundColor(AppTheme.Colors.textTertiary)
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 14)
+                                    }
+                                    
+                                    TextEditor(text: $test.extraPreferenceInfo)
+                                        .font(.system(size: 16))
+                                        .foregroundColor(AppTheme.Colors.textPrimary)
+                                        .scrollContentBackground(.hidden)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 10)
+                                }
+                            }
+                            
+                            if !isNewTest, let onDelete = onDelete {
+                                Button("Delete Test") {
+                                    onDelete(test)
+                                    dismiss()
+                                }
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.red)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color.red.opacity(0.1))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                                        )
+                                )
+                            }
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 40)
                     }
                 }
             }
-            .navigationTitle(isNewTest ? "New Test" : "Edit Test")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
+            .navigationBarHidden(true)
+            .sheet(isPresented: $showingClassManager) {
+                ClassManagerSheet(classes: Binding(
+                    get: { contentModel.user?.classes ?? [] },
+                    set: { newClasses in
+                        contentModel.user?.classes = newClasses
+                        Task {
+                            try? await contentModel.saveUserInfo()
+                        }
                     }
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        saveTest()
-                    }
-                    .fontWeight(.semibold)
-                    .disabled(test.testTitle.isEmpty || test.classTitle.isEmpty)
-                }
+                ))
             }
         }
     }
@@ -1027,5 +1334,257 @@ struct TestEditorView: View {
         test.date = testDate
         onSave(test)
         dismiss()
+    }
+}
+
+// MARK: - Class Manager Sheet
+private struct ClassManagerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var classes: [String]
+    
+    @State private var newClass = ""
+    @State private var editingIndex: Int? = nil
+    @State private var editingText = ""
+    
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppTheme.Colors.background.ignoresSafeArea()
+                
+                VStack(spacing: 24) {
+                    // Header
+                    VStack(spacing: 8) {
+                        Text("Manage Your Classes")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(AppTheme.Colors.textPrimary)
+                        
+                        Text("Add, edit, or remove your classes to better organize your work")
+                            .font(.system(size: 16))
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(AppTheme.Colors.textSecondary)
+                    }
+                    .padding(.top, 20)
+                    
+                    // Add new class
+                    VStack(spacing: 12) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(AppTheme.Colors.accent)
+                            
+                            TextField("Enter class name", text: $newClass)
+                                .font(.system(size: 16))
+                                .foregroundColor(AppTheme.Colors.textPrimary)
+                                .textFieldStyle(PlainTextFieldStyle())
+                            
+                            Button("Add") {
+                                addNewClass()
+                            }
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(AppTheme.Colors.accent)
+                            )
+                            .disabled(newClass.trimmingCharacters(in: .whitespaces).isEmpty)
+                            .opacity(newClass.trimmingCharacters(in: .whitespaces).isEmpty ? 0.6 : 1.0)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(AppTheme.Colors.cardBackground)
+                                .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+                        )
+                    }
+                    
+                    // Classes list
+                    if classes.isEmpty {
+                        VStack(spacing: 16) {
+                            Image(systemName: "building.2")
+                                .font(.system(size: 48))
+                                .foregroundColor(AppTheme.Colors.textTertiary)
+                            
+                            Text("No classes added yet")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(AppTheme.Colors.textSecondary)
+                            
+                            Text("Add your first class above")
+                                .font(.system(size: 16))
+                                .foregroundColor(AppTheme.Colors.textTertiary)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 12) {
+                                ForEach(Array(classes.enumerated()), id: \.offset) { index, className in
+                                    ClassRow(
+                                        className: className,
+                                        index: index,
+                                        isEditing: editingIndex == index,
+                                        editingText: $editingText,
+                                        onEdit: {
+                                            startEditing(index: index, className: className)
+                                        },
+                                        onSave: {
+                                            saveEdit(index: index)
+                                        },
+                                        onCancel: {
+                                            cancelEdit()
+                                        },
+                                        onDelete: {
+                                            deleteClass(at: index)
+                                        }
+                                    )
+                                }
+                            }
+                            .padding(.horizontal, 4)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // Done button
+                    Button {
+                        dismiss()
+                    } label: {
+                        Text("Done")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(AppTheme.Colors.accent)
+                                    .shadow(color: AppTheme.Colors.accent.opacity(0.3), radius: 4, y: 2)
+                            )
+                    }
+                    .padding(.bottom, 20)
+                }
+                .padding(.horizontal, 24)
+            }
+            .navigationBarHidden(true)
+        }
+    }
+    
+    private func addNewClass() {
+        let trimmedClass = newClass.trimmingCharacters(in: .whitespaces)
+        if !trimmedClass.isEmpty && !classes.contains(trimmedClass) {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                classes.append(trimmedClass)
+            }
+            newClass = ""
+        }
+    }
+    
+    private func startEditing(index: Int, className: String) {
+        editingIndex = index
+        editingText = className
+    }
+    
+    private func saveEdit(index: Int) {
+        let trimmedText = editingText.trimmingCharacters(in: .whitespaces)
+        if !trimmedText.isEmpty && !classes.contains(trimmedText) {
+            classes[index] = trimmedText
+        }
+        cancelEdit()
+    }
+    
+    private func cancelEdit() {
+        editingIndex = nil
+        editingText = ""
+    }
+    
+    private func deleteClass(at index: Int) {
+        classes.remove(at: index)
+    }
+}
+
+// MARK: - Class Row
+private struct ClassRow: View {
+    let className: String
+    let index: Int
+    let isEditing: Bool
+    @Binding var editingText: String
+    
+    let onEdit: () -> Void
+    let onSave: () -> Void
+    let onCancel: () -> Void
+    let onDelete: () -> Void
+    
+    @State private var showDeleteAlert = false
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "building.2")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(AppTheme.Colors.textSecondary)
+                .frame(width: 20)
+            
+            if isEditing {
+                TextField("Class name", text: $editingText)
+                    .font(.system(size: 16))
+                    .foregroundColor(AppTheme.Colors.textPrimary)
+                    .textFieldStyle(PlainTextFieldStyle())
+                
+                Button("Save") {
+                    onSave()
+                }
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(AppTheme.Colors.accent)
+                )
+                
+                Button("Cancel") {
+                    onCancel()
+                }
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(AppTheme.Colors.textSecondary)
+            } else {
+                Text(className)
+                    .font(.system(size: 16))
+                    .foregroundColor(AppTheme.Colors.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Button {
+                    onEdit()
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(AppTheme.Colors.textSecondary)
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                Button {
+                    showDeleteAlert = true
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.red.opacity(0.8))
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(AppTheme.Colors.cardBackground)
+                .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
+        )
+        .alert("Delete Class", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
+                onDelete()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to delete '\(className)'?")
+        }
     }
 }

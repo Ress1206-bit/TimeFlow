@@ -14,8 +14,8 @@ struct TabBarView: View {
     private let tabItems = [
         TabItem(icon: "house.fill", title: "Home", tag: 0),
         TabItem(icon: "target", title: "Goals", tag: 1),
-        TabItem(icon: "person.circle", title: "Commitments", tag: 2),
-        TabItem(icon: "person.circle", title: "Commitments", tag: 3),
+        TabItem(icon: "doc.text.fill", title: "Assignments", tag: 2),
+        TabItem(icon: "calendar.badge.clock", title: "Commitments", tag: 3),
         TabItem(icon: "chart.bar.fill", title: "Analytics", tag: 4),
     ]
     
@@ -63,44 +63,24 @@ struct TabButton: View {
     
     var body: some View {
         Button {
-            // Haptic feedback
-            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-            impactFeedback.impactOccurred()
-            
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+            // Only provide haptic feedback if the tab actually changes
+            if selectedTab != item.tag {
+                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                impactFeedback.impactOccurred()
+                
                 selectedTab = item.tag
             }
         } label: {
-            VStack(spacing: 4) {
-                ZStack {
-                    // Background indicator for selected state
-                    if isSelected {
-                        Circle()
-                            .fill(AppTheme.Colors.primary.opacity(0.15))
-                            .frame(width: 32, height: 32)
-                            .scaleEffect(isSelected ? 1.0 : 0.8)
-                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
-                    }
-                    
-                    // Icon
-                    Image(systemName: item.icon)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(isSelected ? AppTheme.Colors.primary : AppTheme.Colors.textTertiary)
-                        .scaleEffect(isSelected ? 1.1 : 1.0)
-                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
-                }
-                
-                // Title
-                Text(item.title)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(isSelected ? AppTheme.Colors.primary : AppTheme.Colors.textQuaternary)
-                    .opacity(isSelected ? 1.0 : 0.8)
-                    .animation(.easeInOut(duration: 0.2), value: isSelected)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 44)
+            // Icon
+            Image(systemName: item.icon)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundColor(isSelected ? AppTheme.Colors.primary : AppTheme.Colors.textTertiary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .contentShape(Rectangle()) // Ensures entire area is tappable
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(.plain)
+        .animation(.easeInOut(duration: 0.2), value: isSelected)
     }
 }
 

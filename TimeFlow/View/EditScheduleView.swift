@@ -330,7 +330,7 @@ struct EditScheduleView: View {
                 
                 VStack(spacing: 12) {
                     Text("No Events to Edit")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .font(.system(size: 28, weight: .bold))
                         .foregroundColor(AppTheme.Colors.textPrimary)
                     
                     Text("Start by generating a schedule or adding events manually")
@@ -877,7 +877,7 @@ struct AIScheduleUpdateView: View {
                 
                 VStack(spacing: 4) {
                     Text("AI Schedule Assistant")
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .font(.system(size: 18, weight: .bold))
                         .foregroundColor(AppTheme.Colors.textPrimary)
                     
                     HStack(spacing: 4) {
@@ -1001,7 +1001,7 @@ struct AIScheduleUpdateView: View {
                 
                 VStack(spacing: 10) {
                     Text("AI Schedule Assistant")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .font(.system(size: 22, weight: .bold))
                         .foregroundColor(AppTheme.Colors.textPrimary)
                     
                     Text("Tell me how you'd like to update your schedule. I can help you add, remove, move, or modify events.")

@@ -34,7 +34,7 @@ struct AnalyticsView: View {
             LinearGradient(
                 colors: [
                     AppTheme.Colors.background,
-                    AppTheme.Colors.secondary.opacity(0.2),
+                    AppTheme.Colors.secondary.opacity(0.3),
                     AppTheme.Colors.background
                 ],
                 startPoint: .topLeading,
@@ -42,12 +42,11 @@ struct AnalyticsView: View {
             )
             .ignoresSafeArea()
             
-            NavigationStack {
+            VStack(spacing: 0) {
+                headerSection
+                
                 ScrollView {
                     VStack(spacing: 28) {
-                        // Header with filters
-                        headerSection
-                        
                         // Category selector
                         categorySelector
                         
@@ -71,18 +70,15 @@ struct AnalyticsView: View {
                 .opacity(animateContent ? 1.0 : 0)
                 .offset(y: animateContent ? 0 : 20)
                 .animation(.easeOut(duration: 0.8), value: animateContent)
-                .navigationTitle("Analytics")
-                .navigationBarTitleDisplayMode(.automatic)
-                .preferredColorScheme(.dark)
-            }
-            // Place tab bar at bottom
-            VStack {
+                
                 Spacer()
+                
                 TabBarView(selectedTab: $selectedTab)
             }
         }
+        .navigationBarHidden(true)
         .onAppear {
-            withAnimation {
+            withAnimation(.easeOut(duration: 0.6)) {
                 animateContent = true
             }
         }
@@ -93,51 +89,44 @@ struct AnalyticsView: View {
 private extension AnalyticsView {
     
     var headerSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 0) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Your Insights")
-                        .font(.title2.weight(.bold))
+                    Text("Analytics")
+                        .font(.system(size: 32, weight: .bold))
                         .foregroundColor(AppTheme.Colors.textPrimary)
                     
-                    Text(timeframeSubtitle)
-                        .font(.subheadline)
+                    Text(headerSubtitle)
+                        .font(.system(size: 16, weight: .medium))
                         .foregroundColor(AppTheme.Colors.textSecondary)
                 }
                 
                 Spacer()
             }
+            .padding(.horizontal, 24)
+            .padding(.top, 16)
+            .padding(.bottom, 24)
             
-            // Timeframe filter
-            timeframeFilter
+            // Subtle divider
+            Rectangle()
+                .fill(AppTheme.Colors.overlay.opacity(0.1))
+                .frame(height: 1)
+                .padding(.horizontal, 24)
         }
-        .scaleEffect(animateContent ? 1.0 : 0.8)
+        .background(AppTheme.Colors.background)
         .opacity(animateContent ? 1.0 : 0)
-        .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1), value: animateContent)
+        .offset(y: animateContent ? 0 : -20)
+        .animation(.easeOut(duration: 0.6).delay(0.1), value: animateContent)
     }
     
-    private var timeframeSubtitle: String {
+    private var headerSubtitle: String {
         let dayCount = recentDailyLogs.count
-        return "\(dayCount) days of data"
-    }
-    
-    private var timeframeFilter: some View {
-        HStack(spacing: 8) {
-            ForEach(TimeframeFilter.allCases) { timeframe in
-                Button(action: { selectedTimeframe = timeframe }) {
-                    Text(timeframe.rawValue)
-                        .font(.caption.weight(.medium))
-                        .foregroundColor(selectedTimeframe == timeframe ? .white : AppTheme.Colors.textSecondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(selectedTimeframe == timeframe ? AppTheme.Colors.primary : Color.clear)
-                        )
-                }
-            }
-            
-            Spacer()
+        if dayCount == 0 {
+            return "No data available"
+        } else if dayCount == 1 {
+            return "1 day of data"
+        } else {
+            return "\(dayCount) days of data"
         }
     }
 }
@@ -170,6 +159,9 @@ private extension AnalyticsView {
     
     var overviewSection: some View {
         VStack(spacing: 24) {
+            // Timeframe filter
+            timeframeFilterSection
+            
             // Key metrics
             keyMetricsGrid
             
@@ -184,6 +176,45 @@ private extension AnalyticsView {
         .scaleEffect(animateContent ? 1.0 : 0.8)
         .opacity(animateContent ? 1.0 : 0)
         .animation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.3), value: animateContent)
+    }
+    
+    private var timeframeFilterSection: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text("Time Period")
+                    .font(.headline.weight(.semibold))
+                    .foregroundColor(AppTheme.Colors.textPrimary)
+                
+                Spacer()
+            }
+            
+            HStack(spacing: 8) {
+                ForEach(TimeframeFilter.allCases) { timeframe in
+                    Button(action: { selectedTimeframe = timeframe }) {
+                        Text(timeframe.rawValue)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(selectedTimeframe == timeframe ? .white : AppTheme.Colors.textSecondary)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(selectedTimeframe == timeframe ? AppTheme.Colors.accent : AppTheme.Colors.cardBackground)
+                            )
+                    }
+                }
+                
+                Spacer()
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(AppTheme.Colors.cardBackground.opacity(0.8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(AppTheme.Colors.overlay.opacity(0.3), lineWidth: 0.5)
+                )
+        )
     }
     
     private var keyMetricsGrid: some View {

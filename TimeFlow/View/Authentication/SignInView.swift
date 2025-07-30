@@ -84,7 +84,7 @@ struct SignInView: View {
                             
                             VStack(spacing: 8) {
                                 Text("Welcome Back")
-                                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                                    .font(.system(size: 28, weight: .bold))
                                     .foregroundColor(AppTheme.Colors.textPrimary)
                                 
                                 Text(email)

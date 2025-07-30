@@ -162,7 +162,7 @@ struct HomeView: View {
                     }
                     
                     Text("TimeFlow AI")
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .font(.system(size: 20, weight: .bold))
                         .foregroundColor(AppTheme.Colors.textPrimary)
                 }
                 
@@ -219,7 +219,7 @@ struct HomeView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Schedule")
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .font(.system(size: 32, weight: .bold))
                         .foregroundColor(AppTheme.Colors.textPrimary)
                     
                     Text(Date().formatted(.dateTime.weekday(.wide).day().month(.abbreviated)))
@@ -318,7 +318,7 @@ struct HomeView: View {
                     
                     VStack(spacing: 12) {
                         Text("No schedule for today")
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .font(.system(size: 28, weight: .bold))
                             .foregroundColor(AppTheme.Colors.textPrimary)
                         
                         Text("Create an AI-generated schedule based on your goals and commitments")
@@ -597,7 +597,7 @@ struct HomeView: View {
                 }
             }
         }
-        .onChange(of: getCurrentEvent(at: Date())) { oldEvent, newEvent in
+        .onChange(of: getCurrentEvent(at: Date())) { (oldEvent: Event?, newEvent: Event?) in
             if showingFocusMode && focusEvent?.id != newEvent?.id {
                 withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
                     showingFocusMode = false
@@ -611,7 +611,7 @@ struct HomeView: View {
         VStack(spacing: 16) {
             HStack {
                 Text("Upcoming")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .font(.system(size: 22, weight: .bold))
                     .foregroundColor(AppTheme.Colors.textPrimary)
                 
                 Spacer()
@@ -710,7 +710,7 @@ struct HomeView: View {
         VStack(spacing: 16) {
             HStack {
                 Text("Day Overview")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .font(.system(size: 22, weight: .bold))
                     .foregroundColor(AppTheme.Colors.textPrimary)
                 
                 Spacer()
@@ -987,7 +987,7 @@ struct HomeView: View {
             VStack(spacing: 16) {
                 HStack {
                     Text("Timeline")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .font(.system(size: 22, weight: .bold))
                         .foregroundColor(AppTheme.Colors.textPrimary)
                     
                     Spacer()
@@ -1020,7 +1020,7 @@ struct HomeView: View {
             VStack(spacing: 24) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Add Context")
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .font(.system(size: 24, weight: .bold))
                         .foregroundColor(AppTheme.Colors.textPrimary)
                     
                     Text("Provide additional context or preferences for your schedule generation.")
@@ -1553,7 +1553,7 @@ struct HomeView: View {
         
         let minutesPerPixel = hourHeight / 60.0
         let yOffset = CGFloat(startTotalMinutes) * minutesPerPixel
-        let height = max(CGFloat(endTotalMinutes - startTotalMinutes) * minutesPerPixel, 36)
+        let height = max(CGFloat(endTotalMinutes - startTotalMinutes) * minutesPerPixel, 36.0)
         
         return (yOffset: yOffset, height: height)
     }

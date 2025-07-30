@@ -115,7 +115,7 @@ private extension WelcomeView {
                 // App title and tagline
                 VStack(spacing: 12) {
                     Text("TimeFlow")
-                        .font(.system(size: 42, weight: .bold, design: .rounded))
+                        .font(.system(size: 42, weight: .bold))
                         .foregroundColor(AppTheme.Colors.textPrimary)
                     
                     Text("Transform your schedule into a seamless flow")

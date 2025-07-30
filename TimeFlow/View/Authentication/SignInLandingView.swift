@@ -57,7 +57,7 @@ struct SignInLandingView: View {
                     
                     VStack(spacing: 12) {
                         Text("TimeFlow")
-                            .font(.system(size: 44, weight: .bold, design: .rounded))
+                            .font(.system(size: 44, weight: .bold))
                             .foregroundColor(AppTheme.Colors.textPrimary)
                         
                         Text("AI-powered scheduling for your perfect day")

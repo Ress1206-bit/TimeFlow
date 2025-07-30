@@ -86,7 +86,7 @@ struct EmailEntryView: View {
                         
                         VStack(spacing: 8) {
                             Text("Enter Your Email")
-                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .font(.system(size: 28, weight: .bold))
                                 .foregroundColor(AppTheme.Colors.textPrimary)
                             
                             Text("We'll check if you have an account or help you create one")

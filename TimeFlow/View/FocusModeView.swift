@@ -129,7 +129,7 @@ struct FocusModeView: View {
                 .foregroundColor(.white.opacity(0.8))
             
             Text(timeRemainingText)
-                .font(.system(size: 48, weight: .bold, design: .rounded))
+                .font(.system(size: 48, weight: .bold))
                 .foregroundColor(.white)
                 .matchedGeometryEffect(id: "eventTime", in: animationNamespace, isSource: isDismissing)
         }
