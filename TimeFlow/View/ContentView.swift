@@ -9,7 +9,6 @@ import SwiftUI
 
 struct ContentView: View {
     
-    @StateObject private var chatVM = ChatViewModel()
     @Environment(ContentModel.self) private var contentModel
     
     @State private var selectedTab = 0

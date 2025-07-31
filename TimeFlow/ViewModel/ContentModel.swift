@@ -28,6 +28,11 @@ class ContentModel {
     // Add UI loading state that persists across views
     var isGeneratingSchedule = false
     
+    // AI Thinking feature - Add these new properties
+    var showingThinkingOverlay = false
+    var currentThinkingStep = ""
+    var thinkingStepIndex = 0
+    
     // Credits system for AI schedule updates
     var dailyCredits: Int = 6
     private let maxDailyCredits = 6
@@ -330,8 +335,13 @@ class ContentModel {
     //------------------------------ Generate Schedule In Background -------------------------------------
     
     func generateScheduleWithBackgroundSupport(userNote: String = "") async throws -> [Event] {
-        // Set UI loading state
+        // Set UI loading state and start thinking overlay
         isGeneratingSchedule = true
+        
+        // Start thinking simulation
+        Task {
+            await simulateThinkingProcess()
+        }
         
         // Start background task
         BackgroundTaskManager.shared.beginBackgroundTask()
@@ -353,8 +363,9 @@ class ContentModel {
             BackgroundTaskManager.shared.endBackgroundTask()
             UserDefaults.standard.set(false, forKey: "isGeneratingSchedule")
             UserDefaults.standard.removeObject(forKey: "pendingUserNote")
-            // Reset UI loading state
+            // Reset UI loading state and thinking overlay
             isGeneratingSchedule = false
+            showingThinkingOverlay = false
         }
         
         guard let user = self.user else {
@@ -701,6 +712,7 @@ class ContentModel {
         // Check if generation was happening when app went to background
         if UserDefaults.standard.bool(forKey: "isGeneratingSchedule") {
             isGeneratingSchedule = true
+            showingThinkingOverlay = true
             
             // Start monitoring for completion
             monitorBackgroundGeneration()
@@ -713,6 +725,7 @@ class ContentModel {
                 if !self.isGeneratingInBackground() {
                     timer.invalidate()
                     self.isGeneratingSchedule = false
+                    self.showingThinkingOverlay = false
                     
                     // Try to load completed schedule
                     if let completedEvents = self.checkForCompletedSchedule() {
@@ -1105,6 +1118,74 @@ class ContentModel {
             try await saveUserHistoryToFirebase()
         } catch {
             print("⚠️ Failed to save history to Firebase (will retry later): \(error)")
+        }
+    }
+    
+    // MARK: - AI Thinking Functions
+    func generateThinkingStepsForScheduleGeneration() -> [String] {
+        guard let user = self.user else {
+            return [
+                "🤔 Preparing to create your schedule...",
+                "📋 Setting up the planning framework...",
+                "⏰ Analyzing your time preferences...",
+                "✨ Finalizing your schedule..."
+            ]
+        }
+        
+        let hasGoals = !user.goals.filter { $0.isActive }.isEmpty
+        let hasAssignments = !user.assignments.filter { !$0.completed }.isEmpty
+        let hasTests = !user.tests.filter { !$0.prepared }.isEmpty
+        let hasCommitments = !user.recurringCommitments.isEmpty
+        
+        var steps: [String] = []
+        
+        // Step 1: Always analyze user data
+        steps.append("🤔 Analyzing your goals, commitments, and preferences...")
+        
+        // Step 2: Time analysis
+        if hasCommitments {
+            steps.append("📅 Reviewing your recurring commitments and time blocks...")
+        } else {
+            steps.append("⏰ Analyzing your available time windows...")
+        }
+        
+        // Step 3: Priority setting
+        if hasAssignments || hasTests {
+            steps.append("📚 Prioritizing assignments and test preparation...")
+        } else if hasGoals {
+            steps.append("🎯 Planning your goal activities and personal time...")
+        } else {
+            steps.append("⚖️ Balancing your schedule for optimal productivity...")
+        }
+        
+        // Step 4: Schedule building
+        steps.append("🏗️ Building your personalized schedule structure...")
+        
+        // Step 5: Final optimization
+        steps.append("✨ Finalizing and optimizing your perfect day...")
+        
+        return steps
+    }
+    
+    func simulateThinkingProcess() async {
+        let thinkingSteps = generateThinkingStepsForScheduleGeneration()
+        
+        await MainActor.run {
+            showingThinkingOverlay = true
+            thinkingStepIndex = 0
+            currentThinkingStep = thinkingSteps.first ?? "Preparing your schedule..."
+        }
+        
+        for (index, step) in thinkingSteps.enumerated() {
+            await MainActor.run {
+                currentThinkingStep = step
+                thinkingStepIndex = index
+            }
+            
+            // Add random delay between thinking steps (1.0 to 5.0 seconds)
+            let randomDelay = Double.random(in: 1.0...5.0)
+            let nanoseconds = UInt64(randomDelay * 1_000_000_000)
+            try? await Task.sleep(nanoseconds: nanoseconds)
         }
     }
 }

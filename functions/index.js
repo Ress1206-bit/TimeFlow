@@ -1,39 +1,57 @@
-/* eslint-disable */
-const functions = require('firebase-functions');
-const fetch     = require('node-fetch');
+const functions = require("firebase-functions");
+const admin = require("firebase-admin");
+const { OpenAI } = require("openai");
 
-// NO runWith, no secrets block – plain Gen-1 function
-exports.chatBot = functions.https.onRequest(async (req, res) => {
-  const data = req.body;
-  const messages = data.messages;
+admin.initializeApp();
 
-  if (!Array.isArray(messages)) {
-    return res.status(400).json({
-      error: `Expected { messages:[…] } but got ${JSON.stringify(data)}`
+const openai = new OpenAI({
+  apiKey: functions.config().openai.key,
+});
+
+exports.chatWithAI = functions.https.onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  if (req.method === "OPTIONS") {
+    res.status(204).send("");
+    return;
+  }
+
+  const authHeader = req.get("Authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const idToken = authHeader.split("Bearer ")[1];
+
+  try {
+    await admin.auth().verifyIdToken(idToken);
+  } catch (error) {
+    return res.status(401).json({ error: "Invalid or expired token" });
+  }
+
+  try {
+    const prompt = req.body.prompt;
+    const model = req.body.model || "gpt-4o";
+
+    if (!prompt) {
+      return res.status(400).json({ error: "Prompt is required" });
+    }
+
+    const chat = await openai.chat.completions.create({
+      model,
+      messages: [
+        { role: "system", content: "You are TimeFlow, an AI day-planner." },
+        { role: "user", content: prompt },
+      ],
     });
+
+    res.json({
+      content: chat.choices[0].message.content,
+      usage: chat.usage,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error" });
   }
-
-  // Read key from functions:config
-  const openaiKey = functions.config().openai.key;
-
-  const payload = {
-    model: 'gpt-3.5-turbo',
-    messages: messages.map(m => ({ role: m.role, content: m.content }))
-  };
-
-  const r = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${openaiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  });
-  if (!r.ok) {
-    const t = await r.text();
-    return res.status(500).json({ error: t });
-  }
-  const jr = await r.json();
-  const reply = jr.choices?.[0]?.message?.content || '';
-  return res.json({ text: reply });
 });

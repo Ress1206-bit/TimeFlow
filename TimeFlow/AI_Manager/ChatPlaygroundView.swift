@@ -6,55 +6,44 @@
 //
 
 import SwiftUI
-import OpenAI
+import FirebaseAuth
 
-private let client = OpenAI(apiToken: "")
+func chatWithAI(prompt: String, model: String = "gpt-4o") async throws -> String {
+    guard let user = Auth.auth().currentUser else {
+        throw NSError(domain: "", code: 1, userInfo: [NSLocalizedDescriptionKey: "User not signed in"])
+    }
 
-private func chatWithAI(prompt: String, model: String = "gpt-4o") async throws -> String {
-    
-    let tuples: [(ChatQuery.ChatCompletionMessageParam.Role, String)] = [
-        (.system, "You are TimeFlow, an AI day-planner."),
-        (.user,   prompt)
+    let idToken = try await user.getIDToken()
+
+    let url = URL(string: "https://us-central1-timeflow-31890.cloudfunctions.net/chatWithAI")!
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+
+    let body = [
+        "prompt": prompt,
+        "model": model
     ]
+    request.httpBody = try JSONEncoder().encode(body)
 
-    
-    let messages: [ChatQuery.ChatCompletionMessageParam] = try tuples.map { role, content in
-        guard let msg = ChatQuery.ChatCompletionMessageParam(role: role, content: content) else {
-            print("Failed to initialize message with role: \(role) and content: \(content)")
-            throw NSError(domain: "ChatPlaygroundView", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to initialize message with content: \(content)"])
-        }
-        return msg
+    let (data, response) = try await URLSession.shared.data(for: request)
+
+    guard let httpResponse = response as? HTTPURLResponse,
+          httpResponse.statusCode == 200 else {
+        let errorString = String(data: data, encoding: .utf8) ?? "Unknown error"
+        throw NSError(domain: "", code: 1, userInfo: [NSLocalizedDescriptionKey: "Server error: \(errorString)"])
     }
-    
-    let query = ChatQuery(messages: messages, model: model)
-    
-    do {
-        let result = try await client.chats(query: query)
-        
-        // Handle usage if present
-        if let usage = result.usage {
-            let inputTokensAmount = Double(usage.promptTokens)
-            let outputTokensAmount = Double(usage.completionTokens)
-            
-            let priceInputPerTokens: Double = 1.1 / 1000000
-            let priceOutputPerTokens: Double = 4.4 / 1000000
-            
-            let totalCost = inputTokensAmount * priceInputPerTokens + outputTokensAmount * priceOutputPerTokens
-            
-            print("Cost of Request: $\(totalCost)")
-        } else {
-            print("No usage information in result")
-        }
-        
-        // Get content from the structured result
-        let content = result.choices.first?.message.content ?? ""
-        return content
-        
-    } catch {
-        print("Error during API call: \(error.localizedDescription)")
-        throw error
+
+    struct ChatResponse: Decodable {
+        let content: String
     }
+
+    let decoded = try JSONDecoder().decode(ChatResponse.self, from: data)
+    return decoded.content
 }
+
+
 
 // MARK: - Public helper
 func userInfoToSchedule(
